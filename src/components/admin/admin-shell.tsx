@@ -25,7 +25,7 @@ export function AdminShell({ children }: AdminShellProps) {
       <AdminSidebar collapsed={sidebarCollapsed} activeItem="overview" />
 
       {/* Main content area */}
-      <div className="flex flex-col min-w-0">
+      <div className="flex min-h-0 flex-col min-w-0">
         {/* Topbar */}
         <AdminTopbar onToggleSidebar={toggleSidebar} sidebarCollapsed={sidebarCollapsed} />
 
