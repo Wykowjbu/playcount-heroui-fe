@@ -14,12 +14,26 @@ import {
   TextField,
   Tabs,
 } from "@heroui/react";
+import { motion, useReducedMotion } from "framer-motion";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
   const [tab, setTab] = useState<"login" | "register">("login");
+  const shouldReduceMotion = useReducedMotion();
+
+  const panelTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: 0.18, ease: "easeOut" as const };
+
+  const panelInitial = shouldReduceMotion
+    ? false
+    : { opacity: 0, y: 8 };
+
+  const panelAnimate = shouldReduceMotion
+    ? { opacity: 1 }
+    : { opacity: 1, y: 0 };
 
   return (
     <AuthLayout>
@@ -49,13 +63,29 @@ export default function LoginPage() {
             </Tabs.List>
           </Tabs.ListContainer>
 
-          <Tabs.Panel className="pt-6" id="login">
-            <LoginForm />
-          </Tabs.Panel>
+          <motion.div layout className="overflow-hidden pt-6" transition={panelTransition}>
+            <Tabs.Panel className="pt-0" id="login">
+              <motion.div
+                key={`login-${tab === "login" ? "active" : "inactive"}`}
+                initial={panelInitial}
+                animate={panelAnimate}
+                transition={panelTransition}
+              >
+                <LoginForm />
+              </motion.div>
+            </Tabs.Panel>
 
-          <Tabs.Panel className="pt-6" id="register">
-            <RegisterForm />
-          </Tabs.Panel>
+            <Tabs.Panel className="pt-0" id="register">
+              <motion.div
+                key={`register-${tab === "register" ? "active" : "inactive"}`}
+                initial={panelInitial}
+                animate={panelAnimate}
+                transition={panelTransition}
+              >
+                <RegisterForm />
+              </motion.div>
+            </Tabs.Panel>
+          </motion.div>
         </Tabs>
 
         <Separator />
