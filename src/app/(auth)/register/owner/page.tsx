@@ -15,6 +15,7 @@ import {
 import { ChevronLeft } from "@gravity-ui/icons";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { useAuth } from "@/lib/auth-context";
+import { ApiError } from "@/lib/api";
 
 export default function OwnerRegisterPage() {
   const { register } = useAuth();
@@ -36,7 +37,10 @@ export default function OwnerRegisterPage() {
         businessName: data.businessName as string,
       });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Đăng ký thất bại");
+      const msg = err instanceof ApiError && err.errors.length > 0
+        ? err.errors[0]
+        : err instanceof Error ? err.message : "Đăng ký thất bại";
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
