@@ -14,11 +14,10 @@ import {
   TextField,
   Tabs,
 } from "@heroui/react";
-import { useRouter } from "next/navigation";
 import { AuthLayout } from "@/components/auth/auth-layout";
+import { useAuth } from "@/lib/auth-context";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [tab, setTab] = useState<"login" | "register">("login");
 
   return (
@@ -50,11 +49,11 @@ export default function LoginPage() {
           </Tabs.ListContainer>
 
           <Tabs.Panel className="pt-6" id="login">
-            <LoginForm onSuccess={() => router.push("/")} />
+            <LoginForm />
           </Tabs.Panel>
 
           <Tabs.Panel className="pt-6" id="register">
-            <RegisterForm onSuccess={() => router.push("/verify-email")} />
+            <RegisterForm />
           </Tabs.Panel>
         </Tabs>
 
@@ -73,22 +72,33 @@ export default function LoginPage() {
 
 /* ───── Login Form ───── */
 
-function LoginForm({ onSuccess }: { onSuccess: () => void }) {
+function LoginForm() {
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError("");
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
-    console.log("[LOGIN]", data);
-    setTimeout(() => {
+    try {
+      await login({ identifier: data.email as string, password: data.password as string });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
+    } finally {
       setIsLoading(false);
-      onSuccess();
-    }, 1000);
+    }
   };
 
   return (
     <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+      {error && (
+        <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+          {error}
+        </div>
+      )}
+
       <TextField isRequired className="w-full" name="email" type="email">
         <Label>Email</Label>
         <Input placeholder="name@example.com" />
@@ -124,22 +134,39 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
 /* ───── Register Form ───── */
 
-function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
+function RegisterForm() {
+  const { register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError("");
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
-    console.log("[REGISTER]", data);
-    setTimeout(() => {
+    try {
+      await register({
+        email: data.email as string,
+        password: data.password as string,
+        fullName: data.fullName as string,
+        phoneNumber: data.phoneNumber as string,
+        role: "Player",
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Đăng ký thất bại");
+    } finally {
       setIsLoading(false);
-      onSuccess();
-    }, 1000);
+    }
   };
 
   return (
     <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+      {error && (
+        <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+          {error}
+        </div>
+      )}
+
       <TextField isRequired className="w-full" name="fullName">
         <Label>Họ và tên</Label>
         <Input placeholder="Nguyễn Văn A" />
@@ -149,6 +176,12 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
       <TextField isRequired className="w-full" name="email" type="email">
         <Label>Email</Label>
         <Input placeholder="name@example.com" />
+        <FieldError />
+      </TextField>
+
+      <TextField isRequired className="w-full" name="phoneNumber">
+        <Label>Số điện thoại</Label>
+        <Input placeholder="0901234567" />
         <FieldError />
       </TextField>
 

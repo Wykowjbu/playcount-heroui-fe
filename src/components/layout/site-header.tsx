@@ -15,33 +15,18 @@ import ArrowRightFromSquare from "@gravity-ui/icons/ArrowRightFromSquare";
 import ArrowRightToSquare from "@gravity-ui/icons/ArrowRightToSquare";
 import Bars from "@gravity-ui/icons/Bars";
 import Bell from "@gravity-ui/icons/Bell";
-import Calendar from "@gravity-ui/icons/Calendar";
-import ChartColumn from "@gravity-ui/icons/ChartColumn";
 import ChevronDown from "@gravity-ui/icons/ChevronDown";
 import CircleQuestion from "@gravity-ui/icons/CircleQuestion";
-import Compass from "@gravity-ui/icons/Compass";
-import CreditCard from "@gravity-ui/icons/CreditCard";
-import FolderOpen from "@gravity-ui/icons/FolderOpen";
 import Gear from "@gravity-ui/icons/Gear";
-import Heart from "@gravity-ui/icons/Heart";
-import House from "@gravity-ui/icons/House";
 import Person from "@gravity-ui/icons/Person";
-import PersonPlus from "@gravity-ui/icons/PersonPlus";
 import Shield from "@gravity-ui/icons/Shield";
 import Star from "@gravity-ui/icons/Star";
-import Xmark from "@gravity-ui/icons/Xmark";
+import { useAuth } from "@/lib/auth-context";
 
 /* ------------------------------------------------------------------ */
-/* MOCK AUTH — thay bằng real auth context khi tích hợp backend        */
+/* TYPES                                                               */
 /* ------------------------------------------------------------------ */
 type HeaderAuthState = "guest" | "player" | "owner" | "admin";
-const MOCK_AUTH: HeaderAuthState = "guest";
-const MOCK_USER = {
-  name: "Nguyễn Văn A",
-  email: "nva@example.com",
-  avatar: "",
-};
-const MOCK_NOTIF_COUNT = 3;
 
 /* ------------------------------------------------------------------ */
 /* CONFIG                                                              */
@@ -49,8 +34,8 @@ const MOCK_NOTIF_COUNT = 3;
 type NavItem = { href: string; label: string };
 
 const GUEST_NAV: NavItem[] = [
-  { href: "/login", label: "Đăng nhập" },
-  { href: "/register/owner", label: "Đăng ký chủ sân" },
+  { href: "/#courts", label: "Sân bãi" },
+  { href: "/#matches", label: "Kèo đấu" },
 ];
 
 const PLAYER_NAV: NavItem[] = [
@@ -116,15 +101,15 @@ function getDropdownItems(auth: HeaderAuthState): DropdownItem[] {
 export function SiteHeader() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
-  const auth = MOCK_AUTH;
+  const auth: HeaderAuthState = user?.role ?? "guest";
   const navItems = getNavItems(auth);
   const dropdownItems = getDropdownItems(auth);
-  const isLanding = pathname === "/";
   const isLoggedIn = auth !== "guest";
 
-  /* -------- Avatar fallback initials -------- */
-  const initials = MOCK_USER.name
+  const displayName = user?.fullName ?? user?.email ?? "User";
+  const initials = displayName
     .split(" ")
     .slice(-2)
     .map((w) => w[0])
@@ -196,13 +181,13 @@ export function SiteHeader() {
                   >
                     <Bell className="w-5 h-5" />
                   </Button>
-                  {MOCK_NOTIF_COUNT > 0 && (
+                  {0 > 0 && (
                     <Badge
                       color="danger"
                       size="sm"
                       className="min-w-[18px] h-[18px] text-[10px] px-1"
                     >
-                      {MOCK_NOTIF_COUNT > 99 ? "99+" : MOCK_NOTIF_COUNT}
+                      {0 > 99 ? "99+" : 0}
                     </Badge>
                   )}
                 </Badge.Anchor>
@@ -218,8 +203,8 @@ export function SiteHeader() {
                       )}
                     >
                       <Avatar size="sm">
-                        {MOCK_USER.avatar ? (
-                          <Avatar.Image src={MOCK_USER.avatar} alt={MOCK_USER.name} />
+                        {user?.avatar ? (
+                          <Avatar.Image src={user?.avatar} alt={displayName} />
                         ) : null}
                         <Avatar.Fallback>{initials}</Avatar.Fallback>
                       </Avatar>
@@ -233,7 +218,8 @@ export function SiteHeader() {
                           key={item.key}
                           id={item.key}
                           textValue={item.label}
-                          href={item.href}
+                          href={item.key === "logout" ? undefined : item.href}
+                          onAction={item.key === "logout" ? logout : undefined}
                           className={item.className}
                         >
                           <div className="flex items-center gap-2">
@@ -299,12 +285,12 @@ export function SiteHeader() {
                   <div className="flex items-center gap-3">
                     <Badge.Anchor>
                       <Avatar size="sm">
-                        {MOCK_USER.avatar ? (
-                          <Avatar.Image src={MOCK_USER.avatar} alt={MOCK_USER.name} />
+                        {user?.avatar ? (
+                          <Avatar.Image src={user?.avatar} alt={displayName} />
                         ) : null}
                         <Avatar.Fallback>{initials}</Avatar.Fallback>
                       </Avatar>
-                      {MOCK_NOTIF_COUNT > 0 && (
+                      {0 > 0 && (
                         <Badge
                           color="danger"
                           size="sm"
@@ -313,8 +299,8 @@ export function SiteHeader() {
                       )}
                     </Badge.Anchor>
                     <div>
-                      <p className="text-sm font-medium">{MOCK_USER.name}</p>
-                      <p className="text-xs text-muted">{MOCK_USER.email}</p>
+                      <p className="text-sm font-medium">{displayName}</p>
+                      <p className="text-xs text-muted">{user?.email}</p>
                     </div>
                   </div>
                 </div>
@@ -343,10 +329,10 @@ export function SiteHeader() {
               {dropdownItems.map((item) => (
                 <Link
                   key={item.key}
-                  href={item.href || "#"}
+                  href={item.key === "logout" ? "#" : (item.href || "#")}
                   onClick={() => {
                     if (item.key === "logout") {
-                      // TODO: handle logout
+                      logout();
                     }
                     setDrawerOpen(false);
                   }}

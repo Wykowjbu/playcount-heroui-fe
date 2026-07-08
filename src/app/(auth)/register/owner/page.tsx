@@ -13,22 +13,33 @@ import {
   TextField,
 } from "@heroui/react";
 import { ChevronLeft } from "@gravity-ui/icons";
-import { useRouter } from "next/navigation";
 import { AuthLayout } from "@/components/auth/auth-layout";
+import { useAuth } from "@/lib/auth-context";
 
 export default function OwnerRegisterPage() {
-  const router = useRouter();
+  const { register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError("");
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
-    console.log("[OWNER_REGISTER]", data);
-    setTimeout(() => {
+    try {
+      await register({
+        email: data.email as string,
+        password: data.password as string,
+        fullName: data.fullName as string,
+        phoneNumber: data.phoneNumber as string,
+        role: "Owner",
+        businessName: data.businessName as string,
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Đăng ký thất bại");
+    } finally {
       setIsLoading(false);
-      router.push("/verify-email");
-    }, 1000);
+    }
   };
 
   return (
@@ -46,6 +57,12 @@ export default function OwnerRegisterPage() {
         </div>
 
         <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          {error && (
+            <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+              {error}
+            </div>
+          )}
+
           <TextField isRequired className="w-full" name="fullName">
             <Label>Họ và tên</Label>
             <Input placeholder="Nguyễn Văn A" />
@@ -55,6 +72,18 @@ export default function OwnerRegisterPage() {
           <TextField isRequired className="w-full" name="email" type="email">
             <Label>Email</Label>
             <Input placeholder="name@example.com" />
+            <FieldError />
+          </TextField>
+
+          <TextField isRequired className="w-full" name="phoneNumber">
+            <Label>Số điện thoại</Label>
+            <Input placeholder="0912 345 678" />
+            <FieldError />
+          </TextField>
+
+          <TextField isRequired className="w-full" name="businessName">
+            <Label>Tên cơ sở kinh doanh</Label>
+            <Input placeholder="Sân thể thao ABC" />
             <FieldError />
           </TextField>
 
@@ -82,18 +111,6 @@ export default function OwnerRegisterPage() {
           >
             <Label>Xác nhận mật khẩu</Label>
             <Input placeholder="••••••••" />
-            <FieldError />
-          </TextField>
-
-          <TextField isRequired className="w-full" name="phone" type="tel">
-            <Label>Số điện thoại</Label>
-            <Input placeholder="0912 345 678" />
-            <FieldError />
-          </TextField>
-
-          <TextField isRequired className="w-full" name="businessName">
-            <Label>Tên cơ sở kinh doanh</Label>
-            <Input placeholder="Sân thể thao ABC" />
             <FieldError />
           </TextField>
 
