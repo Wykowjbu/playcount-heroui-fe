@@ -3,9 +3,6 @@ import {
   Badge,
   Avatar,
   SearchField,
-  SearchFieldInput,
-  SearchFieldSearchIcon,
-  SearchFieldClearButton,
 } from "@heroui/react";
 import Bars from "@gravity-ui/icons/Bars";
 import Bell from "@gravity-ui/icons/Bell";
@@ -36,10 +33,12 @@ export function AdminTopbar({ onToggleSidebar, sidebarCollapsed }: AdminTopbarPr
 
       {/* Right section */}
       <div className="flex items-center gap-3">
-        <SearchField className="hidden sm:flex w-64">
-          <SearchFieldSearchIcon />
-          <SearchFieldInput placeholder="Search cơ sở, chủ sân..." />
-          <SearchFieldClearButton />
+        <SearchField name="admin-search" variant="primary" className="hidden sm:flex w-64">
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input placeholder="Search cơ sở, chủ sân..." />
+            <SearchField.ClearButton />
+          </SearchField.Group>
         </SearchField>
 
         <Badge.Anchor>

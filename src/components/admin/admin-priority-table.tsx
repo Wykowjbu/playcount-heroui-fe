@@ -3,7 +3,7 @@ import {
   Button, ButtonGroup,
   Table,
   Chip,
-  SearchField, SearchFieldInput, SearchFieldSearchIcon,
+  SearchField,
 } from "@heroui/react";
 
 import Sliders from "@gravity-ui/icons/Sliders";
@@ -47,9 +47,11 @@ export function AdminPriorityTable() {
               Columns
             </Button>
           </ButtonGroup>
-          <SearchField className="hidden lg:flex w-48">
-            <SearchFieldSearchIcon />
-            <SearchFieldInput placeholder="Tìm trong hàng chờ..." />
+          <SearchField name="queue-search" variant="primary" className="hidden lg:flex w-48">
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder="Tìm trong hàng chờ..." />
+            </SearchField.Group>
           </SearchField>
         </div>
       </CardHeader>
