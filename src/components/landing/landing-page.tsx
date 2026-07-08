@@ -6,7 +6,6 @@ import {
   Card,
   Chip,
   Skeleton,
-  Drawer,
   Link,
   Separator,
   Select,
@@ -24,8 +23,6 @@ import {
   Calendar as CalendarIcon,
   ChevronRight,
   ArrowRight,
-  Bars,
-  Xmark,
   Star,
   Clock,
   Persons,
@@ -35,6 +32,7 @@ import {
   CreditCard,
   Headphones,
 } from "@gravity-ui/icons";
+import { SiteHeader } from "@/components/layout/site-header";
 import { courts } from "../../mocks/courts";
 import { matches } from "../../mocks/matches";
 import { sports } from "../../mocks/sports";
@@ -92,105 +90,6 @@ function Stars({ rating }: { rating: number }) {
 /* ════════════════════════════════════════════════════
    HEADER
    ════════════════════════════════════════════════════ */
-function Header() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 font-bold text-xl text-accent">
-          <span className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center text-sm font-bold">
-            PC
-          </span>
-          PlayCourt
-        </Link>
-
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-          <Link href="#sports" className="text-muted hover:text-accent transition-colors">
-            Thể thao
-          </Link>
-          <Link href="#courts" className="text-muted hover:text-accent transition-colors">
-            Sân bãi
-          </Link>
-          <Link href="#matches" className="text-muted hover:text-accent transition-colors">
-            Tìm đối
-          </Link>
-          <Link href="#why" className="text-muted hover:text-accent transition-colors">
-            Tại sao PlayCourt
-          </Link>
-        </nav>
-
-        {/* Desktop auth */}
-        <div className="hidden md:flex items-center gap-3">
-          <Link href="/login">
-            <Button variant="ghost" size="sm">
-              Đăng nhập
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button variant="primary" size="sm">
-              Đăng ký
-            </Button>
-          </Link>
-        </div>
-
-        {/* Mobile hamburger */}
-        <Button
-          isIconOnly
-          variant="ghost"
-          size="sm"
-          aria-label="Menu"
-          onPress={() => setMobileOpen(true)}
-          className="md:hidden"
-        >
-          <Bars className="w-5 h-5" />
-        </Button>
-      </div>
-
-      {/* Mobile drawer */}
-      <Drawer isOpen={mobileOpen} onOpenChange={setMobileOpen}>
-        <Drawer.Backdrop />
-        <Drawer.Content>
-          <Drawer.Dialog>
-            <Drawer.Header>
-              <Drawer.Heading>Menu</Drawer.Heading>
-              <Drawer.CloseTrigger />
-            </Drawer.Header>
-            <Drawer.Body>
-              <nav className="flex flex-col gap-4 py-4">
-                <Link href="#sports" onPress={() => setMobileOpen(false)} className="text-base font-medium">
-                  Thể thao
-                </Link>
-                <Link href="#courts" onPress={() => setMobileOpen(false)} className="text-base font-medium">
-                  Sân bãi
-                </Link>
-                <Link href="#matches" onPress={() => setMobileOpen(false)} className="text-base font-medium">
-                  Tìm đối
-                </Link>
-                <Link href="#why" onPress={() => setMobileOpen(false)} className="text-base font-medium">
-                  Tại sao PlayCourt
-                </Link>
-                <Separator />
-                <Link href="/login">
-                  <Button variant="ghost" className="justify-start">
-                    Đăng nhập
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button variant="primary">
-                    Đăng ký
-                  </Button>
-                </Link>
-              </nav>
-            </Drawer.Body>
-          </Drawer.Dialog>
-        </Drawer.Content>
-      </Drawer>
-    </header>
-  );
-}
 
 /* ════════════════════════════════════════════════════
    HERO
@@ -822,7 +721,7 @@ function Footer() {
 export default function LandingPage() {
   return (
     <>
-      <Header />
+      <SiteHeader />
       <main className="flex-1">
         <Hero />
         <SportsCategories />

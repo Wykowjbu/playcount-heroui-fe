@@ -20,6 +20,7 @@ import {
   TimeField,
 } from "@heroui/react";
 import { type DateValue, Time } from "@internationalized/date";
+import { SiteHeader } from "@/components/layout/site-header";
 import type { Key } from "@heroui/react";
 import {
   MapPin,
@@ -101,6 +102,7 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
+      <SiteHeader />
       {/* ─── BREADCRUMB ─── */}
       <div className="mx-auto max-w-7xl px-4 pt-4 pb-2 sm:px-6 lg:px-8">
         <div className="hidden lg:block">
