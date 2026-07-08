@@ -15,7 +15,7 @@ export function AdminShell({ children }: AdminShellProps) {
 
   return (
     <div
-      className="grid min-h-screen bg-[var(--background)] transition-[grid-template-columns] duration-[220ms] motion-reduce:transition-none"
+      className="grid h-screen overflow-hidden bg-[var(--background)] transition-[grid-template-columns] duration-[220ms] motion-reduce:transition-none"
       style={{
         gridTemplateColumns: sidebarCollapsed ? "72px minmax(0, 1fr)" : "280px minmax(0, 1fr)",
         transitionTimingFunction: EASE,

@@ -97,7 +97,7 @@ export function AdminSidebar({ collapsed, activeItem = "overview" }: AdminSideba
   return (
     <aside
       className={cn(
-        "h-full sticky top-0 overflow-hidden",
+        "h-full overflow-hidden",
         "border-r border-[var(--border)] bg-[var(--background)]"
       )}
     >
