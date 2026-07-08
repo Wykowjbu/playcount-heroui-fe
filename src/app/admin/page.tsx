@@ -1,7 +1,10 @@
+import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminOverview } from "@/components/admin/admin-overview";
+
 export default function AdminPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <h1 className="text-4xl font-bold">Admin</h1>
-    </div>
+    <AdminShell>
+      <AdminOverview />
+    </AdminShell>
   );
 }
