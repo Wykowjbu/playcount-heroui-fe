@@ -11,6 +11,63 @@ import Gear from "@gravity-ui/icons/Gear";
 import ArrowRightToSquare from "@gravity-ui/icons/ArrowRightToSquare";
 import ArrowRightFromSquare from "@gravity-ui/icons/ArrowRightFromSquare";
 
+/* ------------------------------------------------------------------ */
+/* HELPERS                                                             */
+/* ------------------------------------------------------------------ */
+
+const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
+
+function SidebarLabel({ collapsed, children }: { collapsed: boolean; children: React.ReactNode }) {
+  return (
+    <span
+      className={cn(
+        "min-w-0 flex-1 truncate whitespace-nowrap text-left",
+        "transition-[max-width,opacity,transform] duration-[180ms] motion-reduce:transition-none",
+        collapsed
+          ? "max-w-0 -translate-x-1.5 opacity-0 pointer-events-none"
+          : "max-w-[180px] translate-x-0 opacity-100"
+      )}
+      style={{ transitionTimingFunction: EASE }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SidebarCount({ collapsed, count }: { collapsed: boolean; count: number }) {
+  return (
+    <>
+      {/* Expanded: Chip */}
+      <span
+        className={cn(
+          "overflow-hidden transition-[max-width,opacity,transform] duration-[160ms] motion-reduce:transition-none",
+          collapsed
+            ? "max-w-0 scale-95 opacity-0"
+            : "max-w-12 scale-100 opacity-100"
+        )}
+        style={{ transitionTimingFunction: EASE }}
+      >
+        <Chip size="sm" variant="soft">{count}</Chip>
+      </span>
+      {/* Collapsed: Badge dot */}
+      <span
+        className={cn(
+          "absolute top-1 right-1 transition-opacity duration-150 motion-reduce:transition-none",
+          collapsed ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+      >
+        <Badge size="sm" color="accent" className="min-w-0 h-4 px-1 text-[10px]">
+          {count}
+        </Badge>
+      </span>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* DATA                                                                */
+/* ------------------------------------------------------------------ */
+
 interface AdminSidebarProps {
   collapsed: boolean;
   activeItem?: string;
@@ -32,94 +89,100 @@ const FOOTER_ITEMS = [
   { id: "logout", label: "Đăng xuất", icon: ArrowRightToSquare, className: "text-[var(--danger)]" },
 ];
 
+/* ------------------------------------------------------------------ */
+/* COMPONENT                                                           */
+/* ------------------------------------------------------------------ */
+
 export function AdminSidebar({ collapsed, activeItem = "overview" }: AdminSidebarProps) {
   return (
     <aside
       className={cn(
-        "h-screen sticky top-0 shrink-0 border-r border-[var(--border)] bg-[var(--background)] transition-[width] duration-200 px-3 py-4",
-        collapsed ? "w-[72px]" : "w-[280px]"
+        "h-full sticky top-0 overflow-hidden",
+        "border-r border-[var(--border)] bg-[var(--background)]"
       )}
     >
-      {/* Header */}
-      <div className={cn("flex flex-col", collapsed ? "items-center" : "items-start")}>
-        <Avatar size="sm">
-          <Avatar.Fallback>A</Avatar.Fallback>
-        </Avatar>
-        {!collapsed && (
-          <div className="mt-2">
-            <p className="text-sm font-semibold">Admin</p>
-            <p className="text-xs text-[var(--muted)]">Quản trị viên</p>
-          </div>
+      <div className="px-3 py-4">
+        {/* Header */}
+        <div className={cn(
+          "flex items-center transition-[gap] duration-[180ms] motion-reduce:transition-none",
+          collapsed ? "justify-center gap-0" : "gap-3"
         )}
+        style={{ transitionTimingFunction: EASE }}
+        >
+          <Avatar size="sm">
+            <Avatar.Fallback>A</Avatar.Fallback>
+          </Avatar>
+          <div
+            className={cn(
+              "min-w-0 overflow-hidden transition-[max-width,opacity,transform] duration-[180ms] motion-reduce:transition-none",
+              collapsed
+                ? "max-w-0 -translate-x-1.5 opacity-0"
+                : "max-w-[180px] translate-x-0 opacity-100"
+            )}
+            style={{ transitionTimingFunction: EASE }}
+          >
+            <p className="text-sm font-semibold whitespace-nowrap">Admin</p>
+            <p className="text-xs text-[var(--muted)] whitespace-nowrap">Quản trị viên</p>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav aria-label="Admin navigation" className="flex flex-col gap-1 mt-4">
+          {NAV_ITEMS.map((item) => {
+            const isActive = activeItem === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={cn(
+                  "relative flex min-h-11 w-full items-center rounded-xl text-sm no-underline",
+                  "transition-[background-color,color,padding,gap] duration-[180ms] motion-reduce:transition-none",
+                  collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
+                  isActive && "bg-[var(--surface-secondary)] font-semibold",
+                  !isActive && "hover:bg-[var(--surface-secondary)]/50"
+                )}
+                style={{ transitionTimingFunction: EASE }}
+                aria-current={isActive ? "page" : undefined}
+                aria-label={item.label}
+              >
+                <item.icon className="w-5 h-5 shrink-0" />
+                <SidebarLabel collapsed={collapsed}>{item.label}</SidebarLabel>
+                {item.count !== undefined && (
+                  <SidebarCount collapsed={collapsed} count={item.count} />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Footer */}
+        <Separator className="my-3" />
+        <nav aria-label="Footer navigation" className="flex flex-col gap-1">
+          {FOOTER_ITEMS.map((item) => {
+            const isActive = activeItem === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={cn(
+                  "relative flex min-h-11 w-full items-center rounded-xl text-sm no-underline",
+                  "transition-[background-color,color,padding,gap] duration-[180ms] motion-reduce:transition-none",
+                  collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
+                  isActive && "bg-[var(--surface-secondary)] font-semibold",
+                  !isActive && "hover:bg-[var(--surface-secondary)]/50",
+                  item.className
+                )}
+                style={{ transitionTimingFunction: EASE }}
+                aria-current={isActive ? "page" : undefined}
+                aria-label={item.label}
+              >
+                <item.icon className="w-5 h-5 shrink-0" />
+                <SidebarLabel collapsed={collapsed}>{item.label}</SidebarLabel>
+              </button>
+            );
+          })}
+        </nav>
       </div>
-
-      {/* Navigation */}
-      <nav aria-label="Admin navigation" className="flex flex-col gap-1 mt-4">
-        {NAV_ITEMS.map((item) => {
-          const isActive = activeItem === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors w-full relative",
-                collapsed && "justify-center",
-                isActive && "bg-[var(--surface-secondary)] font-semibold",
-                !isActive && "hover:bg-[var(--surface-secondary)]/50"
-              )}
-              aria-current={isActive ? "page" : undefined}
-              aria-label={collapsed ? item.label : undefined}
-            >
-              <item.icon className="w-5 h-5 shrink-0" />
-              {!collapsed && (
-                <>
-                  <span className="flex-1 text-left truncate">{item.label}</span>
-                  {item.count !== undefined && (
-                    <Chip size="sm" variant="soft">
-                      {item.count}
-                    </Chip>
-                  )}
-                </>
-              )}
-              {collapsed && item.count !== undefined && (
-                <Badge
-                  size="sm"
-                  color="accent"
-                  className="absolute top-1 right-1 min-w-0 h-4 px-1 text-[10px]"
-                >
-                  {item.count}
-                </Badge>
-              )}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Footer */}
-      <Separator className="my-3" />
-      <nav aria-label="Footer navigation" className="flex flex-col gap-1">
-        {FOOTER_ITEMS.map((item) => {
-          const isActive = activeItem === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors w-full",
-                collapsed && "justify-center",
-                isActive && "bg-[var(--surface-secondary)] font-semibold",
-                !isActive && "hover:bg-[var(--surface-secondary)]/50",
-                item.className
-              )}
-              aria-current={isActive ? "page" : undefined}
-              aria-label={collapsed ? item.label : undefined}
-            >
-              <item.icon className="w-5 h-5 shrink-0" />
-              {!collapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
-            </button>
-          );
-        })}
-      </nav>
     </aside>
   );
 }
