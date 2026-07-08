@@ -49,3 +49,4 @@ ux-ui-agent-learning-sources.md
 # claude / mcp
 .mcp.json
 .claude/
+.agents/
