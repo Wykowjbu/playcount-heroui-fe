@@ -73,6 +73,7 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
+  loginWithRedirect: (payload: LoginPayload, redirectTo?: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
 }
@@ -127,7 +128,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshToken: d.refreshToken,
       };
       persist(u);
-      router.push(getHomeForRole(u.role));
+      // Player stays on "/" (landing becomes discovery home)
+      // Admin → /admin, Owner → /owner
+      const dest = getHomeForRole(u.role);
+      router.push(dest);
+    },
+    [persist, router],
+  );
+
+  /* ---- LOGIN WITH REDIRECT (for auth modal / interceptors) ---- */
+  const loginWithRedirect = useCallback(
+    async ({ identifier, password }: LoginPayload, redirectTo?: string) => {
+      const res = await apiFetch<LoginResponseData>("/Auth/login", {
+        method: "POST",
+        body: JSON.stringify({ identifier, password }),
+      });
+
+      const d = res.data!;
+      const u: User = {
+        id: d.user.id,
+        email: d.user.email,
+        role: d.user.role.toLowerCase() as Role,
+        fullName: d.user.fullName,
+        accessToken: d.accessToken,
+        refreshToken: d.refreshToken,
+      };
+      persist(u);
+
+      if (u.role === "admin") {
+        router.push("/admin");
+        return;
+      }
+      if (u.role === "owner") {
+        router.push("/owner");
+        return;
+      }
+      // Player: use safe redirect or stay on "/"
+      const safe = safeRedirectTo(redirectTo);
+      router.push(safe);
     },
     [persist, router],
   );
@@ -152,7 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithRedirect, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -170,5 +208,21 @@ export function useAuth() {
 export function getHomeForRole(role: Role): string {
   if (role === "admin") return "/admin";
   if (role === "owner") return "/owner";
-  return "/player";
+  return "/";
+}
+
+/** Sanitize redirect path. Only allow internal paths. */
+export function safeRedirectTo(redirectTo?: string | null): string {
+  if (!redirectTo) return "/";
+  // Must be internal path
+  if (!redirectTo.startsWith("/")) return "/";
+  // Don't redirect to auth pages
+  if (
+    redirectTo === "/login" ||
+    redirectTo === "/register" ||
+    redirectTo.startsWith("/register/")
+  ) {
+    return "/";
+  }
+  return redirectTo;
 }

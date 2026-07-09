@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  Alert,
   Button,
   Checkbox,
   Description,
@@ -17,6 +18,7 @@ import {
   useOverlayState,
 } from "@heroui/react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 export default function AuthModalPage() {
   const router = useRouter();
@@ -25,7 +27,11 @@ export default function AuthModalPage() {
 
   const handleClose = () => {
     state.close();
-    router.back();
+    // Only call router.back() if we haven't already navigated away
+    // (login/register handlers navigate via auth context)
+    if (window.location.pathname.includes("/login")) {
+      router.back();
+    }
   };
 
   return (
@@ -108,21 +114,36 @@ export default function AuthModalPage() {
 /* ───── Quick Login Form ───── */
 
 function QuickLoginForm({ onSuccess }: { onSuccess: () => void }) {
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
-    console.log("[QUICK_LOGIN]", data);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await login({
+        identifier: data.email as string,
+        password: data.password as string,
+      });
       onSuccess();
-    }, 1000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Đăng nhập thất bại";
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+      {error && (
+        <Alert color="danger">
+          {error}
+        </Alert>
+      )}
       <TextField isRequired className="w-full" name="email" type="email">
         <Label>Email</Label>
         <Input placeholder="name@example.com" />
@@ -159,21 +180,38 @@ function QuickLoginForm({ onSuccess }: { onSuccess: () => void }) {
 /* ───── Quick Register Form ───── */
 
 function QuickRegisterForm({ onSuccess }: { onSuccess: () => void }) {
+  const { register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
-    console.log("[QUICK_REGISTER]", data);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await register({
+        fullName: data.fullName as string,
+        email: data.email as string,
+        phoneNumber: "",
+        password: data.password as string,
+      });
       onSuccess();
-    }, 1000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Đăng ký thất bại";
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+      {error && (
+        <Alert color="danger">
+          {error}
+        </Alert>
+      )}
       <TextField isRequired className="w-full" name="fullName">
         <Label>Họ và tên</Label>
         <Input placeholder="Nguyễn Văn A" />

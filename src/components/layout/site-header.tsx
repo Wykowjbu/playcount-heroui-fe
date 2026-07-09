@@ -39,7 +39,8 @@ const GUEST_NAV: NavItem[] = [
 ];
 
 const PLAYER_NAV: NavItem[] = [
-  { href: "/explore", label: "Khám phá" },
+  { href: "/venues", label: "Sân bãi" },
+  { href: "/matches", label: "Kèo đấu" },
   { href: "/bookings", label: "Lịch đặt" },
   { href: "/favorites", label: "Yêu thích" },
 ];
@@ -55,6 +56,11 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/users", label: "Người dùng" },
   { href: "/admin/venues", label: "Quản lý sân" },
 ];
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 function getNavItems(auth: HeaderAuthState): NavItem[] {
   if (auth === "player") return PLAYER_NAV;
@@ -78,9 +84,13 @@ function getDropdownItems(auth: HeaderAuthState): DropdownItem[] {
       { key: "help", label: "Trợ giúp", icon: CircleQuestion, href: "/help" },
     ];
   }
-  const items: DropdownItem[] = [
-    { key: "profile", label: "Hồ sơ", icon: Person, href: "/profile" },
-  ];
+  const items: DropdownItem[] = [];
+  if (auth === "player") {
+    items.push({ key: "profile", label: "Hồ sơ", icon: Person, href: "/player/profile" });
+  } else if (auth === "owner") {
+    items.push({ key: "profile", label: "Hồ sơ", icon: Person, href: "/owner/profile" });
+  }
+  // Admin: no "Hồ sơ" item
   if (auth === "owner") {
     items.push({ key: "venues", label: "Quản lý sân", icon: Star, href: "/venues/mine" });
   }
@@ -157,7 +167,7 @@ export function SiteHeader() {
                 href={item.href}
                 className={cn(
                   "px-3 py-1.5 rounded-xl text-sm font-medium transition-colors",
-                  pathname === item.href
+                  isActive(pathname, item.href)
                     ? "bg-surface-secondary text-foreground"
                     : "text-muted hover:text-foreground",
                 )}
@@ -315,7 +325,7 @@ export function SiteHeader() {
                     onClick={() => setDrawerOpen(false)}
                     className={cn(
                       "flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
-                      pathname === item.href
+                      isActive(pathname, item.href)
                         ? "bg-surface-secondary text-foreground"
                         : "text-muted hover:text-foreground hover:bg-surface-secondary/50",
                     )}

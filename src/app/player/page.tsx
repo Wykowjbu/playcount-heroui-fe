@@ -1,7 +1,16 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+/**
+ * /player → redirect to /
+ * Landing page handles Player Discovery Home when logged in.
+ */
 export default function PlayerPage() {
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <h1 className="text-4xl font-bold">Player</h1>
-    </div>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/");
+  }, [router]);
+  return null;
 }
