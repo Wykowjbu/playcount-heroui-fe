@@ -18,11 +18,9 @@ export function VenueCard({ venue }: { venue: DiscoveryVenue }) {
           {venue.imageUrl ? (
             <img src={venue.imageUrl} alt={venue.name} className="w-full h-full object-cover rounded-t-xl" />
           ) : (
-            <span className="text-accent/40 text-4xl font-bold">{venue.sportName.charAt(0)}</span>
+            <span className="text-accent/40 text-4xl font-bold">{venue.name.charAt(0)}</span>
           )}
-          <Chip variant="primary" color="accent" size="sm" className="absolute top-2 left-2 bg-white/90 text-foreground">
-            {venue.sportName}
-          </Chip>
+          {venue.sportName && <Chip variant="primary" color="accent" size="sm" className="absolute top-2 left-2 bg-white/90 text-foreground">{venue.sportName}</Chip>}
           {!venue.isOpenNow && (
             <div className="absolute inset-0 bg-black/40 rounded-t-xl flex items-center justify-center">
               <Chip variant="primary" color="danger" size="sm">Đóng cửa</Chip>

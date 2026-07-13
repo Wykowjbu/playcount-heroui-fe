@@ -49,22 +49,21 @@ export function PlayerSportsPanel() {
   const [editError, setEditError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!user?.accessToken) return;
     setLoading(true);
     setError(null);
     try {
-      const [mySports, allOptions] = await Promise.all([
-        getMySports(user.accessToken),
-        getSportsOptions(user.accessToken).catch(() => [] as SportOption[]),
+      const [mySports, allSports] = await Promise.all([
+        getMySports(),
+        getSportsOptions().catch(() => []),
       ]);
       setSports(mySports);
-      setOptions(allOptions);
+      setOptions(allSports.map((s) => ({ sportId: s.id, sportCode: s.code, sportName: s.name })));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Không thể tải danh sách môn thể thao");
     } finally {
       setLoading(false);
     }
-  }, [user?.accessToken]);
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -80,11 +79,11 @@ export function PlayerSportsPanel() {
   }
 
   async function handleAdd() {
-    if (!user?.accessToken || !addSportId || !addSkill) return;
+    if (!addSportId || !addSkill) return;
     setAddSaving(true);
     setAddError(null);
     try {
-      await addMySport(user.accessToken, {
+      await addMySport({
         sportId: Number(addSportId),
         skillLevel: Number(addSkill),
       });
@@ -100,11 +99,11 @@ export function PlayerSportsPanel() {
   }
 
   async function handleEdit() {
-    if (!user?.accessToken || !editSport) return;
+    if (!editSport) return;
     setEditSaving(true);
     setEditError(null);
     try {
-      await updateMySport(user.accessToken, editSport.sportId, {
+      await updateMySport(editSport.sportId, {
         skillLevel: Number(editSkill),
       });
       setEditSport(null);
@@ -118,10 +117,9 @@ export function PlayerSportsPanel() {
   }
 
   async function handleDelete(sportId: number) {
-    if (!user?.accessToken) return;
     if (!confirm("Xóa môn thể thao này?")) return;
     try {
-      await deleteMySport(user.accessToken, sportId);
+      await deleteMySport(sportId);
       await loadData();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Xóa thất bại");

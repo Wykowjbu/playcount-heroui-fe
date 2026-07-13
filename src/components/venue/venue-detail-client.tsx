@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Button,
   Breadcrumbs,
@@ -31,74 +32,128 @@ import {
   ChevronLeft,
   CircleCheck,
   CircleCheckFill,
-  Signal,
-  Car,
-  Cup,
-  Flame,
-  House,
-  Droplet,
   Person,
   Calendar as CalendarIcon,
 } from "@gravity-ui/icons";
 import type {
-  VenueDetail,
-  CourtDetail,
-  RatingStats,
-  Review,
-} from "@/mocks/venue-detail";
-
-// ─── Icon mapping ───
-const ICON_MAP: Record<string, React.ElementType> = {
-  Signal, Car, Cup, Droplet, House, Flame,
-};
+  VenueResponseDto,
+  CourtDto,
+  OpeningHourDto,
+  ReviewResponseDto,
+  RatingStatsDto,
+} from "@/lib/types/api";
+import { formatDate } from "@/lib/utils/format";
 
 // ─── Props ───
 interface Props {
-  venueId: string;
-  venue: VenueDetail;
-  courts: CourtDetail[];
-  ratings: RatingStats;
-  reviews: Review[];
+  venueId: number;
+  venue: VenueResponseDto;
+  courts: CourtDto[];
+  openingHours: OpeningHourDto[];
+  ratings: RatingStatsDto;
+  reviews: ReviewResponseDto[];
 }
 
-// ─── Format ───
-function formatPrice(n: number) {
-  return n.toLocaleString("vi-VN") + "đ";
+// ─── Format helpers ───
+function formatPrice(n?: number | null) {
+  return (n ?? 0).toLocaleString("vi-VN") + "đ";
 }
 
-// ─── Parse time string to @internationalized/date Time ───
 function parseTime(timeStr: string) {
   if (!timeStr) return null;
   const [h, m] = timeStr.split(":").map(Number);
   return new Time(h, m);
 }
 
+/** TimeField client-only wrapper — avoids hydration mismatch from locale-dependent segments */
+function ClientTimeField(props: React.ComponentProps<typeof TimeField>) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return <div className="w-full h-16" />;
+  return <TimeField {...props} />;
+}
+
+const DAY_NAMES = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+
+function formatOpeningHours(openingHours: OpeningHourDto[]): string[] {
+  if (!openingHours.length) return [];
+
+  // Group consecutive days with same schedule
+  const sorted = [...openingHours].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+  const groups: { days: number[]; open: string; close: string }[] = [];
+
+  for (const h of sorted) {
+    if (h.isClosed) {
+      groups.push({ days: [h.dayOfWeek], open: "", close: "" });
+      continue;
+    }
+    const last = groups[groups.length - 1];
+    if (
+      last &&
+      !last.open === !h.openTime &&
+      last.open === (h.openTime ?? "") &&
+      last.close === (h.closeTime ?? "")
+    ) {
+      last.days.push(h.dayOfWeek);
+    } else {
+      groups.push({
+        days: [h.dayOfWeek],
+        open: h.openTime ?? "",
+        close: h.closeTime ?? "",
+      });
+    }
+  }
+
+  return groups.map((g) => {
+    const dayLabel =
+      g.days.length === 1
+        ? DAY_NAMES[g.days[0]]
+        : g.days.length > 1
+          ? `${DAY_NAMES[g.days[0]]} - ${DAY_NAMES[g.days[g.days.length - 1]]}`
+          : "";
+    if (!g.open) return `${dayLabel}: Nghỉ`;
+    return `${dayLabel}: ${g.open} - ${g.close}`;
+  });
+}
+
+function isVenueOpenToday(openingHours: OpeningHourDto[]): boolean {
+  const today = new Date().getDay();
+  const todayHours = openingHours.find((h) => h.dayOfWeek === today);
+  return !!todayHours && !todayHours.isClosed;
+}
+
 // ═══════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════
 
-export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
+export function VenueDetailClient({ venueId, venue, courts, openingHours, ratings, reviews }: Props) {
+  const router = useRouter();
   const [selectedCourtId, setSelectedCourtId] = useState<Key | null>(null);
+  const [selectedSportId, setSelectedSportId] = useState<Key | null>(null);
   const [selectedDate, setSelectedDate] = useState<DateValue | null>(null);
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<Key | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const selectedCourt = courts.find((c) => c.id === selectedCourtId);
-  const availableCourts = courts.filter((c) => c.status === "available");
+  const availableCourts = courts.filter((c) => c.status === "Available" || c.status === "available");
+  const availableSports = Array.from(new Map(availableCourts.map((court) => [court.sportId, court.sportName])).entries());
+  const filteredCourts = selectedSportId
+    ? availableCourts.filter((court) => court.sportId === Number(selectedSportId))
+    : [];
 
-  const durationMin = selectedDuration ? Number(selectedDuration) : 0;
-  const estimatedPrice =
-    selectedCourt && durationMin
-      ? (selectedCourt.pricePerHour * durationMin) / 60
-      : 0;
-  const isFormComplete = selectedCourtId && selectedDate && selectedTime && selectedDuration;
+  const isFormComplete = selectedSportId && selectedCourtId && selectedDate && selectedTime && selectedDuration;
 
-  const handleBook = () =>
-    console.log("[BOOKING]", {
-      courtId: selectedCourtId, date: selectedDate,
-      time: selectedTime, duration: selectedDuration, estimatedPrice,
-    });
+  const handleBook = () => {
+    router.push(
+      `/bookings/checkout?venue=${venueId}&court=${selectedCourtId}&date=${selectedDate}&time=${selectedTime}&duration=${selectedDuration}`,
+    );
+  };
+
+  const venueImages = (venue.images ?? []).map((i) => i.imageUrl);
+  const venueAmenities = (venue.amenities ?? []).map((a) => a.name);
+  const formattedHours = formatOpeningHours(openingHours);
+  const isOpen = isVenueOpenToday(openingHours);
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -122,7 +177,7 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
 
       <div className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8 lg:pb-12">
         {/* ─── HERO GALLERY ─── */}
-        <HeroGallery images={venue.images} name={venue.name} />
+        <HeroGallery images={venueImages} name={venue.name} />
 
         {/* ─── GRID ─── */}
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
@@ -133,7 +188,7 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
                 <CircleCheck className="mr-1 inline size-3.5" />
                 Đã duyệt
               </Chip>
-              {venue.isOpen && (
+              {isOpen && (
                 <Chip color="accent">
                   <CircleCheckFill className="mr-1 inline size-3.5" />
                   Đang mở cửa hôm nay
@@ -149,27 +204,28 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
               </span>
               <span className="inline-flex items-center gap-1">
                 <StarFill className="size-4 text-[var(--warning)]" />
-                {ratings.average.toFixed(1)}/5.0
-                <span className="text-xs">({ratings.total} đánh giá)</span>
+                {(ratings.averageRating ?? 0).toFixed(1)}/5.0
+                <span className="text-xs">({ratings.totalReviews ?? 0} đánh giá)</span>
               </span>
-              <a className="inline-flex items-center gap-1 hover:text-[var(--foreground)]" href={`tel:${venue.phone}`}>
-                <Smartphone className="size-4" />{venue.phone}
-              </a>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {venue.amenities.slice(0, 4).map((a) => {
-                const Icon = ICON_MAP[a.icon] ?? CircleCheck;
-                return (
-                  <Chip key={a.label} variant="soft">
-                    <Icon className="mr-1 inline size-3.5" />{a.label}
-                  </Chip>
-                );
-              })}
-              {venue.amenities.length > 4 && (
-                <Chip variant="soft">+{venue.amenities.length - 4} tiện ích nữa</Chip>
+              {venue.phone && (
+                <a className="inline-flex items-center gap-1 hover:text-[var(--foreground)]" href={`tel:${venue.phone}`}>
+                  <Smartphone className="size-4" />{venue.phone}
+                </a>
               )}
             </div>
+
+            {venueAmenities.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {venueAmenities.slice(0, 4).map((name) => (
+                  <Chip key={name} variant="soft">
+                    <CircleCheck className="mr-1 inline size-3.5" />{name}
+                  </Chip>
+                ))}
+                {venueAmenities.length > 4 && (
+                  <Chip variant="soft">+{venueAmenities.length - 4} tiện ích nữa</Chip>
+                )}
+              </div>
+            )}
 
             <Separator />
 
@@ -179,7 +235,7 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
                 <Tabs.List aria-label="Chi tiết sân">
                   <Tabs.Tab id="courts">Sân & Lịch trống<Tabs.Indicator /></Tabs.Tab>
                   <Tabs.Tab id="reviews">Đánh giá<Tabs.Indicator /></Tabs.Tab>
-                  <Tabs.Tab id="info">Giờ mở & Nội quy<Tabs.Indicator /></Tabs.Tab>
+                  <Tabs.Tab id="info">Giờ mở & Giới thiệu<Tabs.Indicator /></Tabs.Tab>
                 </Tabs.List>
               </Tabs.ListContainer>
 
@@ -198,7 +254,10 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
               </Tabs.Panel>
 
               <Tabs.Panel className="pt-6" id="info">
-                <InfoTab venue={venue} />
+                <InfoTab
+                  openingHours={formattedHours}
+                  description={venue.description}
+                />
               </Tabs.Panel>
             </Tabs>
           </div>
@@ -207,7 +266,10 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
           <div className="hidden lg:block">
             <div className="sticky top-24">
               <BookingWidget
-                courts={availableCourts}
+                courts={filteredCourts}
+                sports={availableSports}
+                selectedSportId={selectedSportId}
+                onSportChange={(key) => { setSelectedSportId(key); setSelectedCourtId(null); }}
                 selectedCourtId={selectedCourtId}
                 onCourtChange={setSelectedCourtId}
                 selectedDate={selectedDate}
@@ -216,7 +278,6 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
                 onTimeChange={setSelectedTime}
                 selectedDuration={selectedDuration}
                 onDurationChange={setSelectedDuration}
-                estimatedPrice={estimatedPrice}
                 isFormComplete={!!isFormComplete}
                 onBook={handleBook}
                 phone={venue.phone}
@@ -232,8 +293,7 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
           <div>
             <p className="text-xs text-[var(--muted)]">Giá từ</p>
             <p className="text-lg font-bold text-[var(--accent)]">
-              {formatPrice(Math.min(...availableCourts.map((c) => c.pricePerHour)))}
-              <span className="text-sm font-normal text-[var(--muted)]">/giờ</span>
+              Theo khung giờ
             </p>
           </div>
           <Button onPress={() => setDrawerOpen(true)}>ĐẶT SÂN</Button>
@@ -252,7 +312,10 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
               </Drawer.Header>
               <Drawer.Body className="px-4 pb-6">
                 <BookingWidget
-                  courts={availableCourts}
+                  courts={filteredCourts}
+                  sports={availableSports}
+                  selectedSportId={selectedSportId}
+                  onSportChange={(key) => { setSelectedSportId(key); setSelectedCourtId(null); }}
                   selectedCourtId={selectedCourtId}
                   onCourtChange={setSelectedCourtId}
                   selectedDate={selectedDate}
@@ -261,7 +324,6 @@ export function VenueDetailClient({ venue, courts, ratings, reviews }: Props) {
                   onTimeChange={setSelectedTime}
                   selectedDuration={selectedDuration}
                   onDurationChange={setSelectedDuration}
-                  estimatedPrice={estimatedPrice}
                   isFormComplete={!!isFormComplete}
                   onBook={() => { handleBook(); setDrawerOpen(false); }}
                   phone={venue.phone}
@@ -306,7 +368,7 @@ function HeroGallery({ images, name }: { images: string[]; name: string }) {
 function CourtsTab({
   courts, selectedCourtId, onSelectCourt, selectedTime, onSelectTime,
 }: {
-  courts: CourtDetail[];
+  courts: CourtDto[];
   selectedCourtId: Key | null;
   onSelectCourt: (id: Key | null) => void;
   selectedTime: string;
@@ -319,32 +381,29 @@ function CourtsTab({
       <div className="grid gap-3 sm:grid-cols-2">
         {courts.map((court) => {
           const isSelected = court.id === selectedCourtId;
-          const isDisabled = court.status === "maintenance";
+          const isDisabled = court.status === "Maintenance" || court.status === "maintenance";
           return (
-            <button
+            <Button
               key={court.id}
-              className={`rounded-xl border-2 p-4 text-left transition-colors ${
-                isSelected ? "border-[var(--accent)] bg-[var(--surface)]" : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"
-              } ${isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-              disabled={isDisabled}
-              onClick={() => onSelectCourt(court.id)}
-              type="button"
+              className={`h-auto justify-start rounded-xl border-2 p-4 text-left ${
+                isSelected ? "border-[var(--accent)]" : "border-[var(--border)]"
+              }`}
+              isDisabled={isDisabled}
+              onPress={() => onSelectCourt(court.id)}
+              variant="ghost"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex w-full items-start justify-between">
                 <div>
                   <p className="font-semibold">{court.name}</p>
                   <p className="text-sm text-[var(--muted)]">
-                    {court.sport} · {court.type === "indoor" ? "Trong nhà" : "Ngoài trời"}
+                    {court.sportName} · {court.indoor ? "Trong nhà" : "Ngoài trời"}
                   </p>
                 </div>
-                <Chip color={court.status === "available" ? "success" : "warning"} size="sm">
-                  {court.status === "available" ? "Trống" : "Bảo trì"}
+                <Chip color={isDisabled ? "warning" : "success"} size="sm">
+                  {isDisabled ? "Bảo trì" : "Trống"}
                 </Chip>
               </div>
-              <p className="mt-2 text-sm font-medium text-[var(--accent)]">
-                {formatPrice(court.pricePerHour)}/giờ
-              </p>
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -352,30 +411,12 @@ function CourtsTab({
       {selectedCourt && (
         <div className="space-y-3">
           <Separator />
-          <p className="text-sm font-medium">Khung giờ trống — {selectedCourt.name}</p>
-          <div className="flex flex-wrap gap-2">
-            {selectedCourt.timeSlots.map((slot) => {
-              const isBooked = slot.status === "booked";
-              const isActive = selectedTime === slot.startTime;
-              return (
-                <button
-                  key={slot.startTime}
-                  className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-[var(--accent)] text-white"
-                      : isBooked
-                        ? "cursor-not-allowed bg-[var(--surface-secondary)] text-[var(--muted)] opacity-50"
-                        : "bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 cursor-pointer"
-                  }`}
-                  disabled={isBooked}
-                  onClick={() => onSelectTime(slot.startTime)}
-                  type="button"
-                >
-                  {slot.startTime}{isBooked && " (Kín)"}
-                </button>
-              );
-            })}
-          </div>
+          <p className="text-sm font-medium">
+            Khung giờ trống — {selectedCourt.name}
+          </p>
+          <p className="text-xs text-[var(--muted)]">
+            Vui lòng chọn ngày ở widget bên phải để xem lịch trống
+          </p>
         </div>
       )}
     </div>
@@ -383,23 +424,23 @@ function CourtsTab({
 }
 
 // ─── Reviews Tab ───
-function ReviewsTab({ ratings, reviews }: { ratings: RatingStats; reviews: Review[] }) {
+function ReviewsTab({ ratings, reviews }: { ratings: RatingStatsDto; reviews: ReviewResponseDto[] }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-6 sm:flex-row">
         <div className="flex flex-col items-center gap-1">
-          <p className="text-4xl font-bold">{ratings.average.toFixed(1)}</p>
+          <p className="text-4xl font-bold">{(ratings.averageRating ?? 0).toFixed(1)}</p>
           <div className="flex gap-0.5">
             {[1, 2, 3, 4, 5].map((s) => (
-              <StarFill key={s} className={`size-4 ${s <= Math.round(ratings.average) ? "text-[var(--warning)]" : "text-[var(--muted)]"}`} />
+              <StarFill key={s} className={`size-4 ${s <= Math.round(ratings.averageRating ?? 0) ? "text-[var(--warning)]" : "text-[var(--muted)]"}`} />
             ))}
           </div>
-          <p className="text-sm text-[var(--muted)]">{ratings.total} đánh giá</p>
+          <p className="text-sm text-[var(--muted)]">{ratings.totalReviews} đánh giá</p>
         </div>
         <div className="flex-1 space-y-1.5">
           {[5, 4, 3, 2, 1].map((star) => {
-            const count = ratings.distribution[star] ?? 0;
-            const pct = ratings.total > 0 ? (count / ratings.total) * 100 : 0;
+            const count = ratings.ratingDistribution?.[star] ?? 0;
+            const pct = ratings.totalReviews > 0 ? (count / ratings.totalReviews) * 100 : 0;
             return (
               <div key={star} className="flex items-center gap-2 text-sm">
                 <span className="w-8 text-right">{star} sao</span>
@@ -416,6 +457,9 @@ function ReviewsTab({ ratings, reviews }: { ratings: RatingStats; reviews: Revie
       <Separator />
 
       <div className="space-y-4">
+        {reviews.length === 0 && (
+          <p className="text-sm text-[var(--muted)]">Chưa có đánh giá nào.</p>
+        )}
         {reviews.map((r) => (
           <div key={r.id} className="flex gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--surface-secondary)]">
@@ -423,7 +467,7 @@ function ReviewsTab({ ratings, reviews }: { ratings: RatingStats; reviews: Revie
             </div>
             <div className="flex-1 space-y-1">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">{r.userName}</span>
+                <span className="text-sm font-semibold">{r.playerName}</span>
                 <div className="flex gap-0.5">
                   {[1, 2, 3, 4, 5].map((s) =>
                     s <= r.rating ? (
@@ -433,9 +477,9 @@ function ReviewsTab({ ratings, reviews }: { ratings: RatingStats; reviews: Revie
                     ),
                   )}
                 </div>
-                <span className="text-xs text-[var(--muted)]">{r.date}</span>
+                <span className="text-xs text-[var(--muted)]">{formatDate(r.createdAt)}</span>
               </div>
-              <p className="text-sm text-[var(--muted)]">{r.comment}</p>
+              {r.reviewText && <p className="text-sm text-[var(--muted)]">{r.reviewText}</p>}
             </div>
           </div>
         ))}
@@ -445,49 +489,48 @@ function ReviewsTab({ ratings, reviews }: { ratings: RatingStats; reviews: Revie
 }
 
 // ─── Info Tab ───
-function InfoTab({ venue }: { venue: VenueDetail }) {
+function InfoTab({ openingHours, description }: { openingHours: string[]; description: string | null }) {
   return (
     <div className="space-y-6">
       <div>
         <h3 className="mb-3 flex items-center gap-2 font-semibold">
           <Clock className="size-5" />Giờ mở cửa
         </h3>
-        <ul className="space-y-2">
-          {venue.openingHours.map((h, i) => (
-            <li key={i} className="flex items-center gap-2 text-sm">
-              <CircleCheck className="size-4 text-[var(--success)]" />{h}
-            </li>
-          ))}
-        </ul>
+        {openingHours.length > 0 ? (
+          <ul className="space-y-2">
+            {openingHours.map((h, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                <CircleCheck className="size-4 text-[var(--success)]" />{h}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-[var(--muted)]">Chưa cập nhật giờ mở cửa.</p>
+        )}
       </div>
       <Separator />
-      <div>
-        <h3 className="mb-3 font-semibold">Nội quy sân</h3>
-        <ul className="space-y-2">
-          {venue.rules.map((r, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-[var(--muted)]">
-              <span className="mt-1 inline-block size-1.5 shrink-0 rounded-full bg-[var(--muted)]" />{r}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div>
-        <h3 className="mb-3 font-semibold">Giới thiệu</h3>
-        <p className="text-sm leading-relaxed text-[var(--muted)]">{venue.description}</p>
-      </div>
+      {description && (
+        <div>
+          <h3 className="mb-3 font-semibold">Giới thiệu</h3>
+          <p className="text-sm leading-relaxed text-[var(--muted)]">{description}</p>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Booking Widget ───
 function BookingWidget({
-  courts, selectedCourtId, onCourtChange,
+  courts, sports, selectedSportId, onSportChange, selectedCourtId, onCourtChange,
   selectedDate, onDateChange,
   selectedTime, onTimeChange,
   selectedDuration, onDurationChange,
-  estimatedPrice, isFormComplete, onBook, phone,
+  isFormComplete, onBook, phone,
 }: {
-  courts: CourtDetail[];
+  courts: CourtDto[];
+  sports: [number, string][];
+  selectedSportId: Key | null;
+  onSportChange: (key: Key | null) => void;
   selectedCourtId: Key | null;
   onCourtChange: (k: Key | null) => void;
   selectedDate: DateValue | null;
@@ -496,17 +539,33 @@ function BookingWidget({
   onTimeChange: (t: string) => void;
   selectedDuration: Key | null;
   onDurationChange: (k: Key | null) => void;
-  estimatedPrice: number;
   isFormComplete: boolean;
   onBook: () => void;
-  phone: string;
+  phone: string | null;
 }) {
   return (
     <Card>
       <Card.Content className="space-y-4 p-5">
-        <h3 className="text-lg font-bold">Xem giá theo sân</h3>
+        <h3 className="text-lg font-bold">Chọn lịch đặt sân</h3>
 
-        <DatePicker className="w-full" value={selectedDate} onChange={onDateChange}>
+        <Select className="w-full" placeholder="Chọn môn thể thao" value={selectedSportId} onChange={onSportChange}>
+          <Label>Môn thể thao</Label><Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+          <Select.Popover><ListBox>{sports.map(([id, name]) => <ListBox.Item id={id} key={id} textValue={name}>{name}<ListBox.ItemIndicator /></ListBox.Item>)}</ListBox></Select.Popover>
+        </Select>
+
+        <Select
+          className="w-full"
+          placeholder={selectedSportId ? "Chọn sân con" : "Chọn môn trước"}
+          value={selectedCourtId}
+          onChange={onCourtChange}
+          isDisabled={!selectedSportId}
+        >
+          <Label>Sân</Label>
+          <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+          <Select.Popover><ListBox>{courts.map((c) => <ListBox.Item key={c.id} id={c.id} textValue={c.name}>{c.name}<ListBox.ItemIndicator /></ListBox.Item>)}</ListBox></Select.Popover>
+        </Select>
+
+        <DatePicker className="w-full" value={selectedDate} onChange={onDateChange} isDisabled={!selectedCourtId}>
           <Label>Chọn ngày chơi</Label>
           <DateField.Group>
             <DateField.Input>
@@ -540,30 +599,7 @@ function BookingWidget({
           </DatePicker.Popover>
         </DatePicker>
 
-        <Select
-          className="w-full"
-          placeholder="Chọn sân con"
-          value={selectedCourtId}
-          onChange={onCourtChange}
-        >
-          <Label>Sân</Label>
-          <Select.Trigger>
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox>
-              {courts.map((c) => (
-                <ListBox.Item key={c.id} id={c.id} textValue={c.name}>
-                  {c.name} — {formatPrice(c.pricePerHour)}/giờ
-                  <ListBox.ItemIndicator />
-                </ListBox.Item>
-              ))}
-            </ListBox>
-          </Select.Popover>
-        </Select>
-
-        <TimeField
+        <ClientTimeField
           className="w-full"
           value={parseTime(selectedTime)}
           onChange={(v) => {
@@ -576,7 +612,7 @@ function BookingWidget({
               {(segment) => <TimeField.Segment segment={segment} />}
             </TimeField.Input>
           </TimeField.Group>
-        </TimeField>
+        </ClientTimeField>
 
         <Select
           className="w-full"
@@ -598,26 +634,22 @@ function BookingWidget({
           </Select.Popover>
         </Select>
 
-        {isFormComplete && (
-          <div className="space-y-1 rounded-xl bg-[var(--surface-secondary)] p-4">
-            <div className="flex justify-between text-sm">
-              <span className="text-[var(--muted)]">Ước tính tiền sân</span>
-              <span className="font-bold text-[var(--accent)]">{formatPrice(estimatedPrice)}</span>
-            </div>
-            <p className="text-xs text-[var(--muted)]">Phí nền tảng sẽ hiển thị ở bước Checkout</p>
-          </div>
-        )}
-
-        <Button className="w-full" size="lg" onPress={onBook}>TIẾP TỤC ĐẶT SÂN</Button>
+        <Button className="w-full" size="lg" isDisabled={!isFormComplete} onPress={onBook}>
+          TIẾP TỤC ĐẶT SÂN
+        </Button>
 
         <div className="flex gap-2">
-          <a
-            className="flex-1 rounded-lg bg-[var(--surface-secondary)] px-3 py-1.5 text-center text-sm font-medium hover:bg-[var(--surface-tertiary)]"
-            href={`tel:${phone}`}
-          >
-            Liên hệ chủ sân
-          </a>
-          <Button className="flex-1" variant="secondary" size="sm">Tạo kèo tại sân này</Button>
+          {phone && (
+            <Link
+              className="flex-1 rounded-lg bg-[var(--surface-secondary)] px-3 py-1.5 text-center text-sm font-medium hover:bg-[var(--foreground)]/10"
+              href={`tel:${phone}`}
+            >
+              Liên hệ chủ sân
+            </Link>
+          )}
+          <Button className="flex-1" variant="secondary" size="sm">
+            Tạo kèo tại sân này
+          </Button>
         </div>
       </Card.Content>
     </Card>

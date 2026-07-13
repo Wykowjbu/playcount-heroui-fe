@@ -1,15 +1,18 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, type ApiError } from "./api";
+import { apiFetch, type ApiError } from "./api/client";
+import { type Role, getHomeForRole, normalizeRole, safeRedirectTo } from "./utils/redirect";
 
-/* ------------------------------------------------------------------ */
-/* TYPES                                                               */
-/* ------------------------------------------------------------------ */
-type Role = "admin" | "owner" | "player";
-
-interface User {
+export interface AuthUser {
   id: number;
   email: string;
   role: Role;
@@ -18,8 +21,6 @@ interface User {
   accessToken: string;
   refreshToken: string;
 }
-
-export type AuthUser = User;
 
 interface LoginPayload {
   identifier: string;
@@ -31,13 +32,11 @@ interface RegisterPayload {
   email: string;
   phoneNumber: string;
   password: string;
-  role?: "Owner" | "Player";
+  role?: "CourtOwner" | "Player";
   businessName?: string;
 }
 
-/* ------------------------------------------------------------------ */
-/* API RESPONSE TYPES                                                  */
-/* ------------------------------------------------------------------ */
+/* ---- API response shapes ---- */
 interface LoginResponseData {
   accessToken: string;
   refreshToken: string;
@@ -69,24 +68,27 @@ interface RegisterResponseData {
 /* ------------------------------------------------------------------ */
 /* CONTEXT VALUE                                                       */
 /* ------------------------------------------------------------------ */
-interface AuthContextValue {
-  user: User | null;
+export interface AuthContextValue {
+  user: AuthUser | null;
   isLoading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
   loginWithRedirect: (payload: LoginPayload, redirectTo?: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const STORAGE_KEY = "pc_auth";
 
-function loadStored(): User | null {
+function loadStored(): AuthUser | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as AuthUser;
+    return { ...stored, role: normalizeRole(stored.role) };
   } catch {
     return null;
   }
@@ -96,16 +98,17 @@ function loadStored(): User | null {
 /* PROVIDER                                                            */
 /* ------------------------------------------------------------------ */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    setUser(loadStored());
+    const stored = loadStored();
+    setUser(stored);
     setIsLoading(false);
   }, []);
 
-  const persist = useCallback((u: User) => {
+  const persist = useCallback((u: AuthUser) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
     setUser(u);
   }, []);
@@ -116,39 +119,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiFetch<LoginResponseData>("/Auth/login", {
         method: "POST",
         body: JSON.stringify({ identifier, password }),
+        skipAuth: true,
       });
 
       const d = res.data!;
-      const u: User = {
+      const u: AuthUser = {
         id: d.user.id,
         email: d.user.email,
-        role: d.user.role.toLowerCase() as Role,
+        role: normalizeRole(d.user.role),
         fullName: d.user.fullName,
         accessToken: d.accessToken,
         refreshToken: d.refreshToken,
       };
       persist(u);
-      // Player stays on "/" (landing becomes discovery home)
-      // Admin → /admin, Owner → /owner
+
       const dest = getHomeForRole(u.role);
       router.push(dest);
     },
     [persist, router],
   );
 
-  /* ---- LOGIN WITH REDIRECT (for auth modal / interceptors) ---- */
+  /* ---- LOGIN WITH REDIRECT ---- */
   const loginWithRedirect = useCallback(
     async ({ identifier, password }: LoginPayload, redirectTo?: string) => {
       const res = await apiFetch<LoginResponseData>("/Auth/login", {
         method: "POST",
         body: JSON.stringify({ identifier, password }),
+        skipAuth: true,
       });
 
       const d = res.data!;
-      const u: User = {
+      const u: AuthUser = {
         id: d.user.id,
         email: d.user.email,
-        role: d.user.role.toLowerCase() as Role,
+        role: normalizeRole(d.user.role),
         fullName: d.user.fullName,
         accessToken: d.accessToken,
         refreshToken: d.refreshToken,
@@ -163,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push("/owner");
         return;
       }
-      // Player: use safe redirect or stay on "/"
+      // Player: safe redirect or stay
       const safe = safeRedirectTo(redirectTo);
       router.push(safe);
     },
@@ -176,21 +180,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiFetch<RegisterResponseData>("/Auth/register", {
         method: "POST",
         body: JSON.stringify(payload),
+        skipAuth: true,
       });
-      router.push("/verify-email");
+      router.push(`/verify-email?email=${encodeURIComponent(payload.email)}`);
     },
     [router],
   );
 
   /* ---- LOGOUT ---- */
   const logout = useCallback(() => {
+    // Fire-and-forget server logout
+    const stored = loadStored();
+    if (stored?.refreshToken) {
+      apiFetch("/Auth/logout", {
+        method: "POST",
+        body: JSON.stringify({ refreshToken: stored.refreshToken }),
+        skipAuth: true,
+      }).catch(() => {});
+    }
     localStorage.removeItem(STORAGE_KEY);
     setUser(null);
     router.push("/");
   }, [router]);
 
+  /* ---- REFRESH USER (re-fetch /Users/me) ---- */
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await apiFetch<{
+        id: number;
+        fullName: string;
+        email: string;
+        role: string;
+        avatarUrl?: string;
+      }>("/Users/me");
+      if (res.data) {
+        const stored = loadStored();
+        if (!stored) return;
+        const updated: AuthUser = {
+          ...stored,
+          id: res.data.id,
+          email: res.data.email,
+          fullName: res.data.fullName,
+          role: normalizeRole(res.data.role),
+          avatar: res.data.avatarUrl,
+        };
+        persist(updated);
+      }
+    } catch {
+      // Token might be expired; client handles 401 redirect
+    }
+  }, [persist]);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, loginWithRedirect, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, login, loginWithRedirect, register, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -205,24 +249,5 @@ export function useAuth() {
   return ctx;
 }
 
-export function getHomeForRole(role: Role): string {
-  if (role === "admin") return "/admin";
-  if (role === "owner") return "/owner";
-  return "/";
-}
-
-/** Sanitize redirect path. Only allow internal paths. */
-export function safeRedirectTo(redirectTo?: string | null): string {
-  if (!redirectTo) return "/";
-  // Must be internal path
-  if (!redirectTo.startsWith("/")) return "/";
-  // Don't redirect to auth pages
-  if (
-    redirectTo === "/login" ||
-    redirectTo === "/register" ||
-    redirectTo.startsWith("/register/")
-  ) {
-    return "/";
-  }
-  return redirectTo;
-}
+/* Re-export for convenience */
+export { type Role, getHomeForRole, normalizeRole, safeRedirectTo } from "./utils/redirect";

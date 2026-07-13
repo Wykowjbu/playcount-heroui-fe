@@ -2,7 +2,22 @@
 
 import { Card } from "@heroui/react";
 import { CircleCheck } from "@gravity-ui/icons";
-import { sports } from "../../mocks/sports";
+
+interface SportItem {
+  id: number;
+  name: string;
+  playerCount?: number;
+  courtCount?: number;
+}
+
+const DEFAULT_SPORTS: SportItem[] = [
+  { id: 1, name: "Bóng đá", courtCount: 128 },
+  { id: 2, name: "Quần vợt", courtCount: 64 },
+  { id: 3, name: "Cầu lông", courtCount: 96 },
+  { id: 4, name: "Bóng rổ", courtCount: 42 },
+  { id: 5, name: "Bóng chuyền", courtCount: 35 },
+  { id: 6, name: "Padel", courtCount: 18 },
+];
 
 function sportGradient(sport: string): string {
   const map: Record<string, string> = {
@@ -28,7 +43,7 @@ function sportIcon(name: string, className = "w-5 h-5") {
   return map[name] || <CircleCheck className={className} />;
 }
 
-export function SportsCategories() {
+export function SportsCategories({ sports = DEFAULT_SPORTS }: { sports?: SportItem[] }) {
   return (
     <section id="sports" className="py-12 md:py-16" style={{ background: "var(--surface-secondary)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

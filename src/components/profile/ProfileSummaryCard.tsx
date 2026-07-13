@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Avatar, Button, Chip, Separator } from "@heroui/react";
+import { Avatar, Button, Chip, Input, Separator } from "@heroui/react";
 import Camera from "@gravity-ui/icons/Camera";
 import Envelope from "@gravity-ui/icons/Envelope";
 import Smartphone from "@gravity-ui/icons/Smartphone";
@@ -52,7 +52,7 @@ export function ProfileSummaryCard({ profile, onProfileUpdate, role }: Props) {
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !user?.accessToken) return;
+    if (!file) return;
 
     // Validate type
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return;
@@ -61,9 +61,8 @@ export function ProfileSummaryCard({ profile, onProfileUpdate, role }: Props) {
 
     setUploading(true);
     try {
-      // TODO: Wire to real R2 upload endpoint
       const url = await uploadAvatarImage(file);
-      const updated = await updateMyProfile(user.accessToken, { avatarUrl: url });
+      const updated = await updateMyProfile({ avatarUrl: url });
       onProfileUpdate(updated);
     } catch {
       // silently fail for now; TODO: show error toast
@@ -95,7 +94,7 @@ export function ProfileSummaryCard({ profile, onProfileUpdate, role }: Props) {
         >
           <Camera className="w-3.5 h-3.5" />
         </Button>
-        <input
+        <Input
           ref={fileInputRef}
           type="file"
           accept="image/png,image/jpeg,image/webp"

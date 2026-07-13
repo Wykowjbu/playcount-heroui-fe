@@ -27,13 +27,18 @@ export default function OwnerRegisterPage() {
     setError("");
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
+    if (data.password !== data.confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp");
+      setIsLoading(false);
+      return;
+    }
     try {
       await register({
         email: data.email as string,
         password: data.password as string,
         fullName: data.fullName as string,
         phoneNumber: data.phoneNumber as string,
-        role: "Owner",
+        role: "CourtOwner",
         businessName: data.businessName as string,
       });
     } catch (err: unknown) {

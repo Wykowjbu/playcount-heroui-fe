@@ -1,117 +1,97 @@
-import { apiFetch, authHeader, type ApiResponse } from "@/lib/api";
+import { apiFetch } from "@/lib/api/client";
 import type {
   UserProfileResponseDto,
   UpdateUserProfileRequestDto,
   PlayerSportResponseDto,
   AddPlayerSportRequestDto,
   UpdatePlayerSportRequestDto,
-  SportOption,
-} from "@/lib/types/profile";
+  SportDto,
+} from "@/lib/types/api";
 
-/**
- * Fetch current user's profile.
- * GET /api/Users/me
- */
-export async function getMyProfile(token: string): Promise<UserProfileResponseDto> {
-  const res = await apiFetch<UserProfileResponseDto>("/Users/me", {
-    headers: authHeader(token),
-  });
+/* ------------------------------------------------------------------ */
+/* USER PROFILE                                                        */
+/* ------------------------------------------------------------------ */
+
+export async function getMyProfile(): Promise<UserProfileResponseDto> {
+  const res = await apiFetch<UserProfileResponseDto>("/Users/me");
   return res.data!;
 }
 
-/**
- * Update current user's profile.
- * PUT /api/Users/me
- */
 export async function updateMyProfile(
-  token: string,
   body: UpdateUserProfileRequestDto,
 ): Promise<UserProfileResponseDto> {
   const res = await apiFetch<UserProfileResponseDto>("/Users/me", {
     method: "PUT",
-    headers: authHeader(token),
     body: JSON.stringify(body),
   });
   return res.data!;
 }
 
-/**
- * Fetch current player's sports.
- * GET /api/Users/me/sports
- */
-export async function getMySports(token: string): Promise<PlayerSportResponseDto[]> {
-  const res = await apiFetch<PlayerSportResponseDto[]>("/Users/me/sports", {
-    headers: authHeader(token),
-  });
+/* ------------------------------------------------------------------ */
+/* PLAYER SPORTS                                                       */
+/* ------------------------------------------------------------------ */
+
+export async function getMySports(): Promise<PlayerSportResponseDto[]> {
+  const res = await apiFetch<PlayerSportResponseDto[]>("/Users/me/sports");
   return res.data ?? [];
 }
 
-/**
- * Add a sport to player's profile.
- * POST /api/Users/me/sports
- */
 export async function addMySport(
-  token: string,
   body: AddPlayerSportRequestDto,
 ): Promise<PlayerSportResponseDto> {
   const res = await apiFetch<PlayerSportResponseDto>("/Users/me/sports", {
     method: "POST",
-    headers: authHeader(token),
     body: JSON.stringify(body),
   });
   return res.data!;
 }
 
-/**
- * Update a player's sport skill level.
- * PUT /api/Users/me/sports/{sportId}
- */
 export async function updateMySport(
-  token: string,
   sportId: number,
   body: UpdatePlayerSportRequestDto,
 ): Promise<PlayerSportResponseDto> {
   const res = await apiFetch<PlayerSportResponseDto>(`/Users/me/sports/${sportId}`, {
     method: "PUT",
-    headers: authHeader(token),
     body: JSON.stringify(body),
   });
   return res.data!;
 }
 
-/**
- * Delete a player's sport.
- * DELETE /api/Users/me/sports/{sportId}
- */
-export async function deleteMySport(token: string, sportId: number): Promise<void> {
-  await apiFetch<unknown>(`/Users/me/sports/${sportId}`, {
-    method: "DELETE",
-    headers: authHeader(token),
-  });
+export async function deleteMySport(sportId: number): Promise<void> {
+  await apiFetch<unknown>(`/Users/me/sports/${sportId}`, { method: "DELETE" });
 }
 
-/**
- * Fetch list of all available sports (for Select dropdown).
- * GET /api/Sports
- * ponytail: if BE doesn't have this endpoint yet, callers should handle the error
- * and fall back to an empty list.
- */
-export async function getSportsOptions(token: string): Promise<SportOption[]> {
-  const res = await apiFetch<SportOption[]>("/Sports", {
-    headers: authHeader(token),
-  });
+/* ------------------------------------------------------------------ */
+/* SPORTS OPTIONS                                                      */
+/* ------------------------------------------------------------------ */
+
+export async function getSportsOptions(): Promise<SportDto[]> {
+  const res = await apiFetch<SportDto[]>("/Sports?isActive=true", { skipAuth: true });
   return res.data ?? [];
 }
 
+/* ------------------------------------------------------------------ */
+/* AVATAR UPLOAD                                                       */
+/* ------------------------------------------------------------------ */
+
 /**
- * Upload avatar image.
- * TODO: Wire to signed Cloudflare R2 upload endpoint when available.
- * Currently returns the object URL for preview; real upload integration pending.
+ * Upload avatar via Next.js server route (protects R2 credentials).
+ * Returns the public URL of the uploaded image.
  */
 export async function uploadAvatarImage(file: File): Promise<string> {
-  // TODO: Implement signed upload to Cloudflare R2.
-  // For now, return a local object URL for preview.
-  // The caller should upload to R2 via a server-side endpoint,
-  // then pass the resulting URL to updateMyProfile({ avatarUrl }).
-  return URL.createObjectURL(file);
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch("/api/upload/avatar", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Upload failed" }));
+    throw new Error(err.error || "Upload failed");
+  }
+
+  const data = await res.json();
+  return data.url;
 }

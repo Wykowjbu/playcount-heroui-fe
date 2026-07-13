@@ -4,19 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "@/lib/auth-context";
 import { getMyProfile, getMySports, getSportsOptions } from "@/lib/api/profile";
+import { searchVenues, getRecommendedMatches } from "@/lib/api/discovery";
 import {
   getRecommendationState,
   type LocationState,
   type DiscoveryVenue,
   type DiscoveryMatch,
 } from "@/lib/types/discovery";
-import {
-  mockVenues,
-  mockMatches,
-  filterVenuesBySports,
-  filterMatchesBySports,
-  sortByDistance,
-} from "../../mocks/discovery";
 import { DiscoveryHero } from "./discovery-hero";
 import { RecommendedVenuesSection } from "./recommended-venues-section";
 import { ActiveMatchesSection } from "./active-matches-section";
@@ -47,14 +41,14 @@ export function PlayerDiscoveryView({ user }: Props) {
     setLoading(true);
     try {
       const [profile, mySports, allSports] = await Promise.all([
-        getMyProfile(user.accessToken).catch(() => null),
-        getMySports(user.accessToken).catch(() => []),
-        getSportsOptions(user.accessToken).catch(() => []),
+        getMyProfile().catch(() => null),
+        getMySports().catch(() => []),
+        getSportsOptions().catch(() => []),
       ]);
 
       const sportNames = mySports.map((s) => s.sportName);
       setUserSports(sportNames);
-      setAvailableSports(allSports.map((s) => ({ id: s.sportId, name: s.sportName })));
+      setAvailableSports(allSports.map((s) => ({ id: s.id, name: s.name })));
 
       const hasLocation = !!profile?.city;
       if (profile?.city) {
@@ -80,51 +74,39 @@ export function PlayerDiscoveryView({ user }: Props) {
     loadProfile();
   }, [loadProfile]);
 
-  // Load venues (mock for now, can swap to API)
-  const loadVenues = useCallback(() => {
-    const t = setTimeout(() => {
-      setVenuesLoading(true);
-      let result = [...mockVenues];
-      if (userSports.length > 0) {
-        result = filterVenuesBySports(result, userSports);
-        if (result.length < 3) {
-          const popular = mockVenues.filter((v) => !result.find((r) => r.id === v.id));
-          result = [...result, ...popular.slice(0, 3 - result.length)];
-        }
-      }
-      if (location.city) {
-        result = sortByDistance(result);
-      }
-      setVenues(result.slice(0, 6));
-      setVenuesLoading(false);
-    }, 200);
-    return t;
-  }, [userSports, location]);
-
+  // Load venues from real API
   useEffect(() => {
-    const t = loadVenues();
-    return () => clearTimeout(t);
-  }, [loadVenues]);
+    let cancelled = false;
+    setVenuesLoading(true);
+    searchVenues({ pageSize: 6 })
+      .then((result) => {
+        if (!cancelled) setVenues(result.items);
+      })
+      .catch(() => {
+        if (!cancelled) setVenues([]);
+      })
+      .finally(() => {
+        if (!cancelled) setVenuesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
-  // Load matches (mock for now)
-  const loadMatches = useCallback(() => {
-    const t = setTimeout(() => {
-      setMatchesLoading(true);
-      let result = [...mockMatches];
-      if (userSports.length > 0) {
-        result = filterMatchesBySports(result, userSports);
-        if (result.length === 0) result = [...mockMatches];
-      }
-      setMatches(result.slice(0, 6));
-      setMatchesLoading(false);
-    }, 200);
-    return t;
-  }, [userSports]);
-
+  // Load matches from real API
   useEffect(() => {
-    const t = loadMatches();
-    return () => clearTimeout(t);
-  }, [loadMatches]);
+    let cancelled = false;
+    setMatchesLoading(true);
+    getRecommendedMatches(6)
+      .then((items) => {
+        if (!cancelled) setMatches(items);
+      })
+      .catch(() => {
+        if (!cancelled) setMatches([]);
+      })
+      .finally(() => {
+        if (!cancelled) setMatchesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Subtitle for recommended section
   const getSubtitle = () => {
@@ -171,6 +153,7 @@ export function PlayerDiscoveryView({ user }: Props) {
       <DiscoveryHero
         userName={user.fullName}
         userSports={userSports}
+        availableSports={availableSports}
         onSearch={handleSearch}
       />
 

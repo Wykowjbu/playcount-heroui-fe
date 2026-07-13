@@ -10,19 +10,26 @@ import {
   ListBox,
   DatePicker,
   DateField,
+  Input,
+  TextField,
 } from "@heroui/react";
 import type { DateValue } from "@internationalized/date";
 import type { Key } from "@heroui/react";
 import { Magnifier, MapPin } from "@gravity-ui/icons";
-import { sports } from "../../mocks/sports";
+
+interface SportOption {
+  id: number;
+  name: string;
+}
 
 interface Props {
   userName: string;
   userSports: string[];
+  availableSports?: SportOption[];
   onSearch: (params: { location: string; sportId: string; date: string }) => void;
 }
 
-export function DiscoveryHero({ userName, userSports, onSearch }: Props) {
+export function DiscoveryHero({ userName, userSports, availableSports = [], onSearch }: Props) {
   const [location, setLocation] = useState("");
   const [selectedSport, setSelectedSport] = useState<Key | null>(null);
   const [selectedDate, setSelectedDate] = useState<DateValue | null>(null);
@@ -61,17 +68,14 @@ export function DiscoveryHero({ userName, userSports, onSearch }: Props) {
             <Card.Content className="p-4 md:p-6">
               <div className="flex flex-col md:flex-row gap-3">
                 {/* Location input */}
-                <div className="flex-1 flex items-center gap-2 border border-border rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-accent/40">
-                  <MapPin className="w-4 h-4 text-muted shrink-0" />
-                  <input
+                <TextField className="flex-1" aria-label="Địa điểm">
+                  <Input
                     type="text"
                     placeholder="Địa điểm..."
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="w-full bg-transparent outline-none text-sm placeholder:text-muted"
-                    aria-label="Địa điểm"
                   />
-                </div>
+                </TextField>
 
                 {/* Sport Select */}
                 <Select
@@ -86,7 +90,7 @@ export function DiscoveryHero({ userName, userSports, onSearch }: Props) {
                   </Select.Trigger>
                   <Select.Popover>
                     <ListBox>
-                      {sports.map((s) => (
+                      {availableSports.map((s) => (
                         <ListBox.Item key={s.id} id={s.id} textValue={s.name}>
                           {s.name}
                           <ListBox.ItemIndicator />

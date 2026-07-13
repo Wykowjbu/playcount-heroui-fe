@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   Button,
   Avatar,
-  Badge,
   Dropdown,
   Drawer,
   cn,
@@ -14,7 +13,6 @@ import {
 import ArrowRightFromSquare from "@gravity-ui/icons/ArrowRightFromSquare";
 import ArrowRightToSquare from "@gravity-ui/icons/ArrowRightToSquare";
 import Bars from "@gravity-ui/icons/Bars";
-import Bell from "@gravity-ui/icons/Bell";
 import ChevronDown from "@gravity-ui/icons/ChevronDown";
 import CircleQuestion from "@gravity-ui/icons/CircleQuestion";
 import Gear from "@gravity-ui/icons/Gear";
@@ -22,6 +20,7 @@ import Person from "@gravity-ui/icons/Person";
 import Shield from "@gravity-ui/icons/Shield";
 import Star from "@gravity-ui/icons/Star";
 import { useAuth } from "@/lib/auth-context";
+import { NotificationDropdown } from "@/components/layout/notification-dropdown";
 
 /* ------------------------------------------------------------------ */
 /* TYPES                                                               */
@@ -41,20 +40,21 @@ const GUEST_NAV: NavItem[] = [
 const PLAYER_NAV: NavItem[] = [
   { href: "/venues", label: "Sân bãi" },
   { href: "/matches", label: "Kèo đấu" },
-  { href: "/bookings", label: "Lịch đặt" },
-  { href: "/favorites", label: "Yêu thích" },
+  { href: "/player/bookings", label: "Lịch đặt" },
+  { href: "/player/favorites", label: "Yêu thích" },
 ];
 
 const OWNER_NAV: NavItem[] = [
-  { href: "/venues/mine", label: "Sân của tôi" },
-  { href: "/bookings", label: "Lịch đặt" },
-  { href: "/analytics", label: "Thống kê" },
+  { href: "/owner/venues", label: "Quản lý sân" },
+  { href: "/owner/bookings", label: "Đơn đặt" },
+  { href: "/owner/reviews", label: "Đánh giá" },
 ];
 
 const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "Dashboard" },
-  { href: "/admin/users", label: "Người dùng" },
+  { href: "/admin/court-owners", label: "Chủ sân" },
   { href: "/admin/venues", label: "Quản lý sân" },
+  { href: "/admin/amenities", label: "Tiện ích" },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -90,16 +90,21 @@ function getDropdownItems(auth: HeaderAuthState): DropdownItem[] {
   } else if (auth === "owner") {
     items.push({ key: "profile", label: "Hồ sơ", icon: Person, href: "/owner/profile" });
   }
-  // Admin: no "Hồ sơ" item
   if (auth === "owner") {
-    items.push({ key: "venues", label: "Quản lý sân", icon: Star, href: "/venues/mine" });
+    items.push({ key: "venues", label: "Quản lý sân", icon: Star, href: "/owner/venues" });
+  }
+  if (auth === "player") {
+    items.push({ key: "bookings", label: "Lịch đặt", icon: Star, href: "/player/bookings" });
+    items.push({ key: "favorites", label: "Yêu thích", icon: Star, href: "/player/favorites" });
   }
   if (auth === "admin") {
-    items.push({ key: "settings", label: "Cài đặt hệ thống", icon: Shield, href: "/admin/settings" });
+    items.push({ key: "amenities", label: "Tiện ích", icon: Shield, href: "/admin/amenities" });
+    items.push({ key: "sports", label: "Môn thể thao", icon: Shield, href: "/admin/sports" });
+  }
+  if (auth !== "admin") {
+    items.push({ key: "settings", label: "Cài đặt", icon: Gear, href: auth === "owner" ? "/owner/profile" : "/player/settings" });
   }
   items.push(
-    { key: "settings", label: "Cài đặt", icon: Gear, href: "/settings" },
-    { key: "help", label: "Trợ giúp", icon: CircleQuestion, href: "/help" },
     { key: "logout", label: "Đăng xuất", icon: ArrowRightToSquare, className: "text-danger" },
   );
   return items;
@@ -182,45 +187,26 @@ export function SiteHeader() {
             {/* Logged-in: notification + avatar (desktop) */}
             {isLoggedIn && (
               <>
-                <Badge.Anchor className="hidden md:block">
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    aria-label="Thông báo"
-                    className="text-muted"
-                  >
-                    <Bell className="w-5 h-5" />
-                  </Button>
-                  {0 > 0 && (
-                    <Badge
-                      color="danger"
-                      size="sm"
-                      className="min-w-[18px] h-[18px] text-[10px] px-1"
-                    >
-                      {0 > 99 ? "99+" : 0}
-                    </Badge>
-                  )}
-                </Badge.Anchor>
+                <NotificationDropdown />
 
                 {/* Avatar Dropdown (desktop) */}
                 <Dropdown>
-                  <Dropdown.Trigger>
-                    <button
-                      className={cn(
-                        "hidden md:flex items-center gap-1.5 rounded-full",
-                        "hover:ring-2 hover:ring-primary/30 transition-all",
-                        "outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                      )}
-                    >
-                      <Avatar size="sm">
-                        {user?.avatar ? (
-                          <Avatar.Image src={user?.avatar} alt={displayName} />
-                        ) : null}
-                        <Avatar.Fallback>{initials}</Avatar.Fallback>
-                      </Avatar>
-                      <ChevronDown className="w-4 h-4 text-muted" />
-                    </button>
-                  </Dropdown.Trigger>
+                  <Button
+                    aria-label="Tài khoản"
+                    variant="ghost"
+                    className={cn(
+                      "hidden md:flex items-center gap-1.5 rounded-full px-1",
+                      "hover:ring-2 hover:ring-primary/30 transition-all",
+                    )}
+                  >
+                    <Avatar size="sm">
+                      {user?.avatar ? (
+                        <Avatar.Image src={user?.avatar} alt={displayName} />
+                      ) : null}
+                      <Avatar.Fallback>{initials}</Avatar.Fallback>
+                    </Avatar>
+                    <ChevronDown className="w-4 h-4 text-muted" />
+                  </Button>
                   <Dropdown.Popover placement="bottom end">
                     <Dropdown.Menu>
                       {dropdownItems.map((item) => (
@@ -228,7 +214,7 @@ export function SiteHeader() {
                           key={item.key}
                           id={item.key}
                           textValue={item.label}
-                          href={item.key === "logout" ? undefined : item.href}
+                          href={item.href || undefined}
                           onAction={item.key === "logout" ? logout : undefined}
                           className={item.className}
                         >
@@ -293,21 +279,12 @@ export function SiteHeader() {
               {isLoggedIn && (
                 <div className="px-5 py-4 border-b border-border">
                   <div className="flex items-center gap-3">
-                    <Badge.Anchor>
-                      <Avatar size="sm">
-                        {user?.avatar ? (
-                          <Avatar.Image src={user?.avatar} alt={displayName} />
-                        ) : null}
-                        <Avatar.Fallback>{initials}</Avatar.Fallback>
-                      </Avatar>
-                      {0 > 0 && (
-                        <Badge
-                          color="danger"
-                          size="sm"
-                          className="min-w-[16px] h-[16px] text-[9px] px-1"
-                        />
-                      )}
-                    </Badge.Anchor>
+                    <Avatar size="sm">
+                      {user?.avatar ? (
+                        <Avatar.Image src={user?.avatar} alt={displayName} />
+                      ) : null}
+                      <Avatar.Fallback>{initials}</Avatar.Fallback>
+                    </Avatar>
                     <div>
                       <p className="text-sm font-medium">{displayName}</p>
                       <p className="text-xs text-muted">{user?.email}</p>

@@ -26,11 +26,10 @@ export function ProfilePageShell({ role }: Props) {
   const [selectedTab, setSelectedTab] = useState<string>("personal");
 
   const loadProfile = useCallback(async () => {
-    if (!user?.accessToken) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await getMyProfile(user.accessToken);
+      const data = await getMyProfile();
       setProfile(data);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Không thể tải hồ sơ";
@@ -38,7 +37,7 @@ export function ProfilePageShell({ role }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [user?.accessToken]);
+  }, []);
 
   useEffect(() => {
     loadProfile();

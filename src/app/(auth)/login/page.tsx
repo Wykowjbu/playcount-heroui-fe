@@ -154,7 +154,7 @@ function LoginForm() {
             Ghi nhớ đăng nhập
           </Checkbox.Content>
         </Checkbox>
-        <Link className="text-sm" href="#">
+        <Link className="text-sm" href="/forgot-password">
           Quên mật khẩu?
         </Link>
       </div>
@@ -178,6 +178,11 @@ function RegisterForm() {
     setError("");
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
+    if (data.password !== data.confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp");
+      setIsLoading(false);
+      return;
+    }
     try {
       await register({
         email: data.email as string,

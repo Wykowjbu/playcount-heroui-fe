@@ -22,7 +22,7 @@ export function AdminShell({ children }: AdminShellProps) {
       }}
     >
       {/* Sidebar */}
-      <AdminSidebar collapsed={sidebarCollapsed} activeItem="overview" />
+      <AdminSidebar collapsed={sidebarCollapsed} />
 
       {/* Main content area */}
       <div className="flex min-h-0 flex-col min-w-0">

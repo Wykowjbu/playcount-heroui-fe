@@ -1,40 +1,101 @@
 "use client";
 
-import { useState } from "react";
-import { Button, InputOTP, Label, Link, Spinner } from "@heroui/react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { Button, InputOTP, Label, Link, Spinner, Alert } from "@heroui/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthLayout } from "@/components/auth/auth-layout";
+import { apiFetch } from "@/lib/api/client";
 
 export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>}>
+      <VerifyEmailContent />
+    </Suspense>
+  );
+}
+
+function VerifyEmailContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const emailFromQuery = searchParams.get("email") ?? "";
+
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  const maskedEmail = "a****@gmail.com";
+  // Cooldown timer for resend
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
-  const handleVerify = () => {
+  const maskedEmail = emailFromQuery
+    ? emailFromQuery.replace(/(.{2})(.*)(@.*)/, "$1***$3")
+    : "****@****";
+
+  async function handleVerify() {
     if (otp.length < 6) {
       setError("Vui lòng nhập đầy đủ mã OTP");
       return;
     }
     setError("");
     setIsLoading(true);
-    console.log("[VERIFY_OTP]", { code: otp });
-    setTimeout(() => {
+    try {
+      await apiFetch("/Auth/verify-email", {
+        method: "POST",
+        body: JSON.stringify({ email: emailFromQuery, otp }),
+        skipAuth: true,
+      });
+      setSuccess(true);
+      setTimeout(() => router.push("/login"), 2000);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Xác minh thất bại");
+    } finally {
       setIsLoading(false);
-      router.push("/login");
-    }, 1000);
-  };
+    }
+  }
 
-  const handleResend = () => {
+  async function handleResend() {
+    if (!emailFromQuery) {
+      setError("Không có email. Vui lòng quay lại đăng ký.");
+      return;
+    }
     setIsResending(true);
-    console.log("[RESEND_OTP]");
-    setTimeout(() => {
+    setError("");
+    try {
+      await apiFetch("/Auth/resend-verify-email", {
+        method: "POST",
+        body: JSON.stringify({ email: emailFromQuery }),
+        skipAuth: true,
+      });
+      setResendCooldown(60);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Gửi lại thất bại");
+    } finally {
       setIsResending(false);
-    }, 1000);
-  };
+    }
+  }
+
+  if (success) {
+    return (
+      <AuthLayout>
+        <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
+          <Alert status="success" className="w-full">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Description>
+                Xác minh email thành công! Đang chuyển đến trang đăng nhập...
+              </Alert.Description>
+            </Alert.Content>
+          </Alert>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout>
@@ -65,7 +126,12 @@ export default function VerifyEmailPage() {
             </InputOTP.Group>
           </InputOTP>
           {error && (
-            <p className="text-sm text-[var(--danger)]">{error}</p>
+            <Alert status="danger" className="w-full max-w-xs">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Description>{error}</Alert.Description>
+              </Alert.Content>
+            </Alert>
           )}
         </div>
 
@@ -80,13 +146,13 @@ export default function VerifyEmailPage() {
         <div className="flex items-center gap-1 text-sm text-[var(--muted)]">
           <span>Không nhận được mã?</span>
           <Button
-            isDisabled={isResending}
+            isDisabled={isResending || resendCooldown > 0}
             isPending={isResending}
             size="sm"
             variant="ghost"
             onPress={handleResend}
           >
-            Gửi lại mã
+            {resendCooldown > 0 ? `Gửi lại sau ${resendCooldown}s` : "Gửi lại mã"}
           </Button>
         </div>
 

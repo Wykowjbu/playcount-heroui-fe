@@ -276,22 +276,26 @@ export function VenuesPage() {
                 {activeChips.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {activeChips.map((chip) => (
-                      <button
+                      <Button
                         key={chip.key}
-                        onClick={chip.onRemove}
+                        size="sm"
+                        variant="ghost"
+                        onPress={chip.onRemove}
                         className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
                         aria-label={`Xóa bộ lọc ${chip.label}`}
                       >
                         {chip.label}
                         <span className="text-accent/60">×</span>
-                      </button>
+                      </Button>
                     ))}
-                    <button
-                      onClick={handleClearFilters}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onPress={handleClearFilters}
                       className="text-xs text-muted hover:text-foreground transition-colors"
                     >
                       Xóa tất cả
-                    </button>
+                    </Button>
                   </div>
                 )}
 

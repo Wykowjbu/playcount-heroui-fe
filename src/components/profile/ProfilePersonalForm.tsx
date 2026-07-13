@@ -53,7 +53,7 @@ export function ProfilePersonalForm({ profile, onProfileUpdate }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user?.accessToken || fullNameError || !isDirty) return;
+    if (fullNameError || !isDirty) return;
 
     setSaving(true);
     setError(null);
@@ -69,7 +69,7 @@ export function ProfilePersonalForm({ profile, onProfileUpdate }: Props) {
     };
 
     try {
-      const updated = await updateMyProfile(user.accessToken, body);
+      const updated = await updateMyProfile(body);
       onProfileUpdate(updated);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);

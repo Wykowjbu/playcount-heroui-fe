@@ -1,15 +1,18 @@
-import { Avatar, Badge, Chip, Separator, cn } from "@heroui/react";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Avatar, Button, Separator, cn } from "@heroui/react";
 
 import House from "@gravity-ui/icons/House";
 import ListCheck from "@gravity-ui/icons/ListCheck";
 import PersonGear from "@gravity-ui/icons/PersonGear";
-import Star from "@gravity-ui/icons/Star";
 import Tags from "@gravity-ui/icons/Tags";
 import Wrench from "@gravity-ui/icons/Wrench";
-import Bell from "@gravity-ui/icons/Bell";
-import Gear from "@gravity-ui/icons/Gear";
 import ArrowRightToSquare from "@gravity-ui/icons/ArrowRightToSquare";
 import ArrowRightFromSquare from "@gravity-ui/icons/ArrowRightFromSquare";
+
+import { useAuth } from "@/lib/auth-context";
 
 /* ------------------------------------------------------------------ */
 /* HELPERS                                                             */
@@ -34,57 +37,26 @@ function SidebarLabel({ collapsed, children }: { collapsed: boolean; children: R
   );
 }
 
-function SidebarCount({ collapsed, count }: { collapsed: boolean; count: number }) {
-  return (
-    <>
-      {/* Expanded: Chip */}
-      <span
-        className={cn(
-          "overflow-hidden transition-[max-width,opacity,transform] duration-[160ms] motion-reduce:transition-none",
-          collapsed
-            ? "max-w-0 scale-95 opacity-0"
-            : "max-w-12 scale-100 opacity-100"
-        )}
-        style={{ transitionTimingFunction: EASE }}
-      >
-        <Chip size="sm" variant="soft">{count}</Chip>
-      </span>
-      {/* Collapsed: Badge dot */}
-      <span
-        className={cn(
-          "absolute top-1 right-1 transition-opacity duration-150 motion-reduce:transition-none",
-          collapsed ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-      >
-        <Badge size="sm" color="accent" className="min-w-0 h-4 px-1 text-[10px]">
-          {count}
-        </Badge>
-      </span>
-    </>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* DATA                                                                */
 /* ------------------------------------------------------------------ */
 
-interface AdminSidebarProps {
-  collapsed: boolean;
-  activeItem?: string;
+interface NavItem {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  href: string;
 }
 
-const NAV_ITEMS = [
-  { id: "overview", label: "Tổng quan", icon: House },
-  { id: "venues", label: "Phê duyệt cơ sở", icon: ListCheck, count: 12 },
-  { id: "owners", label: "Xác minh chủ sân", icon: PersonGear, count: 5 },
-  { id: "reviews", label: "Kiểm duyệt đánh giá", icon: Star, count: 3 },
-  { id: "sports", label: "Môn thể thao", icon: Tags },
-  { id: "amenities", label: "Tiện ích", icon: Wrench },
-  { id: "notifications", label: "Thông báo", icon: Bell, count: 3 },
+const NAV_ITEMS: NavItem[] = [
+  { id: "overview", label: "Tổng quan", icon: House, href: "/admin" },
+  { id: "venues", label: "Phê duyệt cơ sở", icon: ListCheck, href: "/admin/venues" },
+  { id: "owners", label: "Xác minh chủ sân", icon: PersonGear, href: "/admin/court-owners" },
+  { id: "sports", label: "Môn thể thao", icon: Tags, href: "/admin/sports" },
+  { id: "amenities", label: "Tiện ích", icon: Wrench, href: "/admin/amenities" },
 ];
 
 const FOOTER_ITEMS = [
-  { id: "account", label: "Tài khoản", icon: Gear },
   { id: "home", label: "Về trang chính", icon: ArrowRightFromSquare, href: "/" },
   { id: "logout", label: "Đăng xuất", icon: ArrowRightToSquare, className: "text-[var(--danger)]" },
 ];
@@ -93,7 +65,19 @@ const FOOTER_ITEMS = [
 /* COMPONENT                                                           */
 /* ------------------------------------------------------------------ */
 
-export function AdminSidebar({ collapsed, activeItem = "overview" }: AdminSidebarProps) {
+interface AdminSidebarProps {
+  collapsed: boolean;
+}
+
+export function AdminSidebar({ collapsed }: AdminSidebarProps) {
+  const pathname = usePathname();
+  const { logout } = useAuth();
+
+  function isActive(item: NavItem): boolean {
+    if (item.id === "overview") return pathname === "/admin";
+    return pathname.startsWith(item.href);
+  }
+
   return (
     <aside
       className={cn(
@@ -129,28 +113,24 @@ export function AdminSidebar({ collapsed, activeItem = "overview" }: AdminSideba
         {/* Navigation */}
         <nav aria-label="Admin navigation" className="flex flex-col gap-1 mt-4">
           {NAV_ITEMS.map((item) => {
-            const isActive = activeItem === item.id;
+            const active = isActive(item);
             return (
-              <button
+              <Link
                 key={item.id}
-                type="button"
+                href={item.href}
                 className={cn(
                   "relative flex min-h-11 w-full items-center rounded-xl text-sm no-underline",
                   "transition-[background-color,color,padding,gap] duration-[180ms] motion-reduce:transition-none",
                   collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
-                  isActive && "bg-[var(--surface-secondary)] font-semibold",
-                  !isActive && "hover:bg-[var(--surface-secondary)]/50"
+                  active && "bg-[var(--surface-secondary)] font-semibold",
+                  !active && "hover:bg-[var(--surface-secondary)]/50"
                 )}
                 style={{ transitionTimingFunction: EASE }}
-                aria-current={isActive ? "page" : undefined}
-                aria-label={item.label}
+                aria-current={active ? "page" : undefined}
               >
                 <item.icon className="w-5 h-5 shrink-0" />
                 <SidebarLabel collapsed={collapsed}>{item.label}</SidebarLabel>
-                {item.count !== undefined && (
-                  <SidebarCount collapsed={collapsed} count={item.count} />
-                )}
-              </button>
+              </Link>
             );
           })}
         </nav>
@@ -159,26 +139,41 @@ export function AdminSidebar({ collapsed, activeItem = "overview" }: AdminSideba
         <Separator className="my-3" />
         <nav aria-label="Footer navigation" className="flex flex-col gap-1">
           {FOOTER_ITEMS.map((item) => {
-            const isActive = activeItem === item.id;
+            if (item.id === "logout") {
+              return (
+                <Button
+                  key={item.id}
+                  variant="ghost"
+                  onPress={() => logout()}
+                  className={cn(
+                    "relative flex min-h-11 w-full items-center rounded-xl text-sm no-underline",
+                    "transition-[background-color,color,padding,gap] duration-[180ms] motion-reduce:transition-none",
+                    collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
+                    "hover:bg-[var(--surface-secondary)]/50",
+                    item.className
+                  )}
+                  style={{ transitionTimingFunction: EASE }}
+                >
+                  <item.icon className="w-5 h-5 shrink-0" />
+                  <SidebarLabel collapsed={collapsed}>{item.label}</SidebarLabel>
+                </Button>
+              );
+            }
             return (
-              <button
+              <Link
                 key={item.id}
-                type="button"
+                href={item.href!}
                 className={cn(
                   "relative flex min-h-11 w-full items-center rounded-xl text-sm no-underline",
                   "transition-[background-color,color,padding,gap] duration-[180ms] motion-reduce:transition-none",
                   collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
-                  isActive && "bg-[var(--surface-secondary)] font-semibold",
-                  !isActive && "hover:bg-[var(--surface-secondary)]/50",
-                  item.className
+                  "hover:bg-[var(--surface-secondary)]/50"
                 )}
                 style={{ transitionTimingFunction: EASE }}
-                aria-current={isActive ? "page" : undefined}
-                aria-label={item.label}
               >
                 <item.icon className="w-5 h-5 shrink-0" />
                 <SidebarLabel collapsed={collapsed}>{item.label}</SidebarLabel>
-              </button>
+              </Link>
             );
           })}
         </nav>
