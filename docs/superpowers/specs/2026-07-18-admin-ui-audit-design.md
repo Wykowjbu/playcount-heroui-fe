@@ -29,7 +29,7 @@ Use direct HeroUI tables with status filters above them.
 - Court owners: full name/email, business name/phone, verification status, registration date, and a details action. The list uses `CourtOwnerListItemDto`; detail data is fetched only when required.
 - Every table identifies a semantic row-header column with `isRowHeader`, uses stable row IDs, and uses HeroUI empty/loading states.
 
-Owner approval and rejection happen only after opening a HeroUI modal containing the detail endpoint's available identity and business fields. Rejection requires a reason.
+Owner approval and rejection happen only after opening a HeroUI modal containing the detail endpoint's available identity and business fields. Rejection requires a reason. Mutations use the backend's numeric `verificationStatus` field.
 
 ## Reference Data
 
@@ -38,11 +38,11 @@ Owner approval and rejection happen only after opening a HeroUI modal containing
 
 ## Venue Detail
 
-Show the venue identity, status actions, contact information, owner profile ID, dates, amenities, images, opening hours, and courts fetched from the existing venue-courts endpoint. Time-only strings such as `06:00:00` render as `06:00`; ISO datetimes retain the existing localized time behavior. Rejection and suspension use a HeroUI modal, and rejection requires a reason.
+Show the venue identity, status actions, contact information, owner profile ID, dates, amenities, images, opening hours, and courts fetched from the existing venue-courts endpoint. Time-only strings such as `06:00:00` render as `06:00`; ISO datetimes retain the existing localized time behavior. Venue status mutations use numeric enum values. The backend venue-status contract has no reason field, so rejection and suspension use explicit confirmation without inventing or discarding a reason.
 
 ## Data and Error Handling
 
-Correct TypeScript contracts to match backend DTOs instead of inventing fallback fields. Keep API errors visible in-page and replace browser `alert` calls only where the touched flow already has a HeroUI modal surface. After successful mutations, refresh the affected data or return to the relevant list.
+Correct TypeScript contracts to match backend DTOs instead of inventing fallback fields. Keep expected request and mutation errors visible through HeroUI `Alert` surfaces instead of browser `alert`. After successful mutations, refresh the affected data or return to the relevant list.
 
 ## Verification
 
@@ -50,4 +50,3 @@ Correct TypeScript contracts to match backend DTOs instead of inventing fallback
 - Run those tests red then green.
 - Run ESLint and the production build.
 - Re-preview all five admin screens plus venue detail and check that Next DevTools reports no HeroUI table accessibility issue.
-
