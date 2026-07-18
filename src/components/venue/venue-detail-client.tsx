@@ -163,7 +163,7 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
         <div className="hidden lg:block">
           <Breadcrumbs>
             <Breadcrumbs.Item href="/">Trang chủ</Breadcrumbs.Item>
-            <Breadcrumbs.Item href="/#courts">Hồ Chí Minh</Breadcrumbs.Item>
+            <Breadcrumbs.Item href="/venues">Danh sách sân</Breadcrumbs.Item>
             <Breadcrumbs.Item>{venue.name}</Breadcrumbs.Item>
           </Breadcrumbs>
         </div>
@@ -184,14 +184,14 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
           {/* LEFT */}
           <div className="space-y-6">
             <div className="flex flex-wrap gap-2">
-              <Chip color="success">
-                <CircleCheck className="mr-1 inline size-3.5" />
-                Đã duyệt
+              <Chip color={isOpen ? "success" : "default"}>
+                {isOpen ? <CircleCheckFill className="mr-1 inline size-3.5" /> : <Clock className="mr-1 inline size-3.5" />}
+                {isOpen ? "Đang mở cửa hôm nay" : "Đã đóng cửa hôm nay"}
               </Chip>
               {isOpen && (
-                <Chip color="accent">
+                <Chip color="accent" variant="soft">
                   <CircleCheckFill className="mr-1 inline size-3.5" />
-                  Đang mở cửa hôm nay
+                  Có thể đặt trực tuyến
                 </Chip>
               )}
             </div>
@@ -202,11 +202,13 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
               <span className="inline-flex items-center gap-1">
                 <MapPin className="size-4 shrink-0" />{venue.address}
               </span>
-              <span className="inline-flex items-center gap-1">
-                <StarFill className="size-4 text-[var(--warning)]" />
-                {(ratings.averageRating ?? 0).toFixed(1)}/5.0
-                <span className="text-xs">({ratings.totalReviews ?? 0} đánh giá)</span>
-              </span>
+              {ratings.totalReviews > 0 ? (
+                <span className="inline-flex items-center gap-1">
+                  <StarFill className="size-4 text-[var(--warning)]" />
+                  {(ratings.averageRating ?? 0).toFixed(1)}/5.0
+                  <span className="text-xs">({ratings.totalReviews} đánh giá)</span>
+                </span>
+              ) : <span>Chưa có đánh giá</span>}
               {venue.phone && (
                 <a className="inline-flex items-center gap-1 hover:text-[var(--foreground)]" href={`tel:${venue.phone}`}>
                   <Smartphone className="size-4" />{venue.phone}
@@ -353,7 +355,7 @@ function HeroGallery({ images, name }: { images: string[]; name: string }) {
   return (
     <div className="grid grid-cols-1 gap-2 lg:grid-cols-[2fr_1fr] lg:grid-rows-2">
       <div className="lg:row-span-2">
-        <img alt={name} className="h-64 w-full rounded-2xl object-cover lg:h-full" src={images[0]} />
+        <img alt={name} className="h-72 w-full rounded-2xl object-cover lg:h-[22.5rem]" src={images[0]} />
       </div>
       {images.slice(1, 3).map((img, i) => (
         <div key={i} className="hidden lg:block">
@@ -378,7 +380,7 @@ function CourtsTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {courts.map((court) => {
           const isSelected = court.id === selectedCourtId;
           const isDisabled = court.status === "Maintenance" || court.status === "maintenance";
@@ -543,6 +545,26 @@ function BookingWidget({
   onBook: () => void;
   phone: string | null;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <Card>
+        <Card.Content className="space-y-4 p-5">
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </Card.Content>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <Card.Content className="space-y-4 p-5">
@@ -637,6 +659,7 @@ function BookingWidget({
         <Button className="w-full" size="lg" isDisabled={!isFormComplete} onPress={onBook}>
           TIẾP TỤC ĐẶT SÂN
         </Button>
+        {!isFormComplete && <p className="text-sm text-[var(--muted)]">Chọn môn, sân, ngày, giờ và thời lượng để tiếp tục.</p>}
 
         <div className="flex gap-2">
           {phone && (

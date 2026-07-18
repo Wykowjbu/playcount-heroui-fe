@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Button } from "@heroui/react";
+import { Alert, Button, Modal } from "@heroui/react";
 import MapPin from "@gravity-ui/icons/MapPin";
 import CircleInfo from "@gravity-ui/icons/CircleInfo";
 import type { LocationState } from "@/lib/types/discovery";
 
 interface Props {
+  isOpen: boolean;
   onLocationResolved: (loc: LocationState) => void;
   onSkip: () => void;
 }
 
-export function LocationConsentCard({ onLocationResolved, onSkip }: Props) {
+export function LocationConsentCard({ isOpen, onLocationResolved, onSkip }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,9 +44,13 @@ export function LocationConsentCard({ onLocationResolved, onSkip }: Props) {
     );
   };
 
-  return (
-    <Card className="border border-accent/20 bg-accent/5">
-      <Card.Content className="p-4 sm:p-5">
+  return <Modal>
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={(open) => { if (!open) onSkip(); }} variant="blur">
+      <Modal.Container size="sm" placement="center">
+        <Modal.Dialog aria-label="Cho phép dùng vị trí hiện tại">
+          <Modal.CloseTrigger />
+          <Modal.Header><Modal.Heading>Dùng vị trí hiện tại?</Modal.Heading></Modal.Header>
+          <Modal.Body>
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
             <MapPin className="w-5 h-5 text-accent" />
@@ -55,24 +60,13 @@ export function LocationConsentCard({ onLocationResolved, onSkip }: Props) {
             <p className="text-xs text-muted mt-1">
               PlayCourt dùng vị trí để sắp xếp sân gần bạn hơn.
             </p>
-            {error && (
-              <div className="mt-2 flex items-start gap-1.5 text-xs text-warning">
-                <CircleInfo className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                <span>{error}</span>
-              </div>
-            )}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button size="sm" variant="primary" onPress={handleUseLocation} isPending={loading}>
-                <MapPin className="w-3.5 h-3.5 mr-1" />
-                Dùng vị trí hiện tại
-              </Button>
-              <Button size="sm" variant="ghost" onPress={onSkip}>
-                Bỏ qua
-              </Button>
-            </div>
+            {error && <Alert className="mt-3" status="warning"><Alert.Indicator><CircleInfo className="size-4" /></Alert.Indicator><Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content></Alert>}
           </div>
         </div>
-      </Card.Content>
-    </Card>
-  );
+          </Modal.Body>
+          <Modal.Footer><Button slot="close" variant="tertiary">Không phải bây giờ</Button><Button variant="primary" onPress={handleUseLocation} isPending={loading}><MapPin className="mr-1 size-4" />Dùng vị trí hiện tại</Button></Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
+  </Modal>;
 }

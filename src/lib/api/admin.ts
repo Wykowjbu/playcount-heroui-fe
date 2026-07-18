@@ -2,6 +2,7 @@ import { apiFetch, apiFetchPaged, buildQuery, type PagedResponse } from "@/lib/a
 import type {
   VenueResponseDto,
   UpdateVenueStatusRequestDto,
+  CourtOwnerListItemDto,
   CourtOwnerDetailDto,
   UpdateCourtOwnerVerificationStatusRequestDto,
   SportDto,
@@ -9,7 +10,6 @@ import type {
   UpdateSportRequestDto,
   AmenityDto,
   CreateAmenityRequestDto,
-  ReviewResponseDto,
 } from "@/lib/types/api";
 
 /* ------------------------------------------------------------------ */
@@ -37,9 +37,9 @@ export async function updateVenueStatus(id: number, body: UpdateVenueStatusReque
 /* ADMIN — COURT OWNERS                                                */
 /* ------------------------------------------------------------------ */
 
-export async function getCourtOwners(status?: string): Promise<CourtOwnerDetailDto[]> {
+export async function getCourtOwners(status?: string): Promise<CourtOwnerListItemDto[]> {
   const qs = buildQuery({ status });
-  const res = await apiFetch<CourtOwnerDetailDto[]>(`/court-owners${qs}`);
+  const res = await apiFetch<CourtOwnerListItemDto[]>(`/court-owners${qs}`);
   return res.data ?? [];
 }
 

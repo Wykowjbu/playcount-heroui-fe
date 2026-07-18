@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Card, Chip, Alert, Skeleton, Pagination, Select, ListBox, Label, TextField, Input } from "@heroui/react";
+import { Button, Card, Chip, Alert, Skeleton, Pagination, Select, ListBox, Label, TextField, Input, Modal } from "@heroui/react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { PlayerBottomNav } from "@/components/layout/player-bottom-nav";
 import { searchMatches } from "@/lib/api/matches";
@@ -16,6 +16,7 @@ import Person from "@gravity-ui/icons/Person";
 import Calendar from "@gravity-ui/icons/Calendar";
 import Plus from "@gravity-ui/icons/Plus";
 import type { Key } from "@heroui/react";
+import { CreateMatchPage } from "./create-match-page";
 
 export function MatchesBrowsePage() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export function MatchesBrowsePage() {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const keyword = searchParams.get("keyword") ?? "";
   const sportId = searchParams.get("sportId") ? Number(searchParams.get("sportId")) : null;
@@ -97,12 +99,10 @@ export function MatchesBrowsePage() {
               Tìm và tham gia các kèo đấu thể thao
             </p>
           </div>
-          <Link href="/matches/create">
-            <Button variant="primary" size="sm">
-              <Plus className="size-4 mr-1" />
-              Tạo kèo mới
-            </Button>
-          </Link>
+          <Button variant="primary" size="sm" onPress={() => setCreateOpen(true)}>
+            <Plus className="size-4 mr-1" />
+            Tạo kèo mới
+          </Button>
         </div>
 
         {/* Filters */}
@@ -174,9 +174,7 @@ export function MatchesBrowsePage() {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Person className="size-12 text-[var(--muted)] mb-4" />
             <p className="text-[var(--muted)] mb-4">Không tìm thấy kèo đấu nào.</p>
-            <Link href="/matches/create">
-              <Button variant="primary" size="sm">Tạo kèo mới</Button>
-            </Link>
+            <Button variant="primary" size="sm" onPress={() => setCreateOpen(true)}>Tạo kèo mới</Button>
           </div>
         )}
 
@@ -284,6 +282,28 @@ export function MatchesBrowsePage() {
           </>
         )}
       </main>
+      <Modal>
+        <Modal.Backdrop isOpen={createOpen} onOpenChange={setCreateOpen} variant="blur">
+          <Modal.Container size="lg" scroll="inside">
+            <Modal.Dialog aria-label="Tạo kèo mới">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <div>
+                  <Modal.Heading>Tạo kèo mới</Modal.Heading>
+                  <p className="mt-1 text-sm text-[var(--muted)]">Nhập thông tin để tìm người chơi phù hợp.</p>
+                </div>
+              </Modal.Header>
+              <Modal.Body className="px-6 py-0">
+                <CreateMatchPage embedded />
+              </Modal.Body>
+              <Modal.Footer>
+                <Button slot="close" variant="secondary">Hủy</Button>
+                <Button form="create-match-form" type="submit">Tạo kèo đấu</Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
       <PlayerBottomNav />
     </div>
   );

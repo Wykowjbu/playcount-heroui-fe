@@ -12,6 +12,7 @@ import {
   TextField,
   Input,
   Label,
+  Alert,
 } from "@heroui/react";
 
 import Plus from "@gravity-ui/icons/Plus";
@@ -77,7 +78,7 @@ function SportsContent() {
 
   async function handleSubmit() {
     if (!formName.trim() || !formCode.trim()) return;
-    setActionLoading(true);
+    setActionLoading(true); setError(null);
     try {
       if (editingSport) {
         const body: UpdateSportRequestDto = { name: formName.trim(), code: formCode.trim(), description: formDesc.trim() || undefined };
@@ -89,19 +90,19 @@ function SportsContent() {
       await loadSports();
       setModalOpen(false);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Thao tác thất bại");
+      setError(err instanceof Error ? err.message : "Thao tác thất bại");
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleToggle(id: number) {
-    setToggleLoading(id);
+    setToggleLoading(id); setError(null);
     try {
       await toggleSportActive(id);
       await loadSports();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Thao tác thất bại");
+      setError(err instanceof Error ? err.message : "Thao tác thất bại");
     } finally {
       setToggleLoading(null);
     }
@@ -120,10 +121,10 @@ function SportsContent() {
         </Button>
       </div>
 
+      {error && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content></Alert>}
+
       {loading ? (
         <div className="flex h-48 items-center justify-center"><Spinner size="lg" /></div>
-      ) : error ? (
-        <div className="flex h-48 items-center justify-center"><p className="text-[var(--danger)]">{error}</p></div>
       ) : sports.length === 0 ? (
         <Card className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
           <CardContent className="p-12 flex flex-col items-center gap-4">
@@ -134,13 +135,10 @@ function SportsContent() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-          <CardContent className="p-0">
             <Table aria-label="Danh sách môn thể thao">
-              <Table.Content>
+              <Table.ScrollContainer><Table.Content>
                 <Table.Header>
-                  <Table.Column>ID</Table.Column>
-                  <Table.Column>Mã</Table.Column>
+                  <Table.Column isRowHeader>Mã</Table.Column>
                   <Table.Column>Tên</Table.Column>
                   <Table.Column>Mô tả</Table.Column>
                   <Table.Column>Trạng thái</Table.Column>
@@ -148,8 +146,7 @@ function SportsContent() {
                 </Table.Header>
                 <Table.Body items={sports}>
                   {(item) => (
-                    <Table.Row>
-                      <Table.Cell>{item.id}</Table.Cell>
+                    <Table.Row id={item.id}>
                       <Table.Cell className="font-mono text-xs">{item.code}</Table.Cell>
                       <Table.Cell className="font-medium">{item.name}</Table.Cell>
                       <Table.Cell className="text-[var(--muted)]">{item.description ?? "—"}</Table.Cell>
@@ -171,13 +168,11 @@ function SportsContent() {
                     </Table.Row>
                   )}
                 </Table.Body>
-              </Table.Content>
+              </Table.Content></Table.ScrollContainer>
             </Table>
-          </CardContent>
-        </Card>
       )}
 
-      <Modal isOpen={modalOpen}>
+      <Modal isOpen={modalOpen} onOpenChange={setModalOpen}>
         <Modal.Backdrop>
           <Modal.Container>
             <Modal.Dialog className="sm:max-w-md">
@@ -202,7 +197,7 @@ function SportsContent() {
                 </div>
               </Modal.Body>
               <Modal.Footer>
-                <Button variant="ghost" slot="close" isDisabled={actionLoading}>Hủy</Button>
+                <Button variant="ghost" onPress={() => setModalOpen(false)} isDisabled={actionLoading}>Hủy</Button>
                 <Button variant="primary" isDisabled={actionLoading || !formName.trim() || !formCode.trim()} onPress={handleSubmit}>
                   {actionLoading ? <Spinner size="sm" className="mr-2" /> : null}
                   {editingSport ? "Lưu" : "Tạo"}

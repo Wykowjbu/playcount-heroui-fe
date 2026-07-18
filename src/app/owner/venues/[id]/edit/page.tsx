@@ -2,15 +2,16 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Button,
+  Alert,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   TextField,
   Input,
+  TextArea,
   Label,
   FieldError,
   Form,
@@ -21,8 +22,11 @@ import ArrowLeft from "@gravity-ui/icons/ArrowLeft";
 
 import { OwnerGuard } from "@/lib/auth/guards";
 import { OwnerShell } from "@/components/owner/owner-shell";
+import { OwnerButtonLink } from "@/components/owner/owner-ui";
+import { OwnerStatusChip } from "@/components/owner/owner-ui";
 import { getMyVenueById, updateVenue } from "@/lib/api/owner";
 import type { VenueResponseDto } from "@/lib/types/api";
+import { buildVenueUpdateRequest } from "./venue-update";
 
 export default function EditVenuePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -61,6 +65,7 @@ function EditVenueForm({ venueId }: { venueId: number }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!venue) return;
     const newErrors: Record<string, string> = {};
     if (!name.trim()) newErrors.name = "Tên cơ sở là bắt buộc";
     if (!address.trim()) newErrors.address = "Địa chỉ là bắt buộc";
@@ -69,7 +74,11 @@ function EditVenueForm({ venueId }: { venueId: number }) {
     setErrors({});
     setSubmitting(true);
     try {
-      await updateVenue(venueId, { name: name.trim(), address: address.trim(), description: description.trim() || undefined, phone: phone.trim() || undefined });
+      await updateVenue(
+        venueId,
+        buildVenueUpdateRequest(venue, { name, address, description, phone }),
+      );
+      setVenue(await getMyVenueById(venueId));
       router.push(`/owner/venues/${venueId}`);
     } catch (err: unknown) {
       setErrors({ form: err instanceof Error ? err.message : "Cập nhật thất bại" });
@@ -87,20 +96,29 @@ function EditVenueForm({ venueId }: { venueId: number }) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="mx-auto max-w-[1000px] space-y-6">
       <div className="flex items-center gap-3">
-        <Link href={`/owner/venues/${venueId}`}>
-          <Button variant="ghost" isIconOnly aria-label="Quay lại">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </Link>
+        <OwnerButtonLink href={`/owner/venues/${venueId}`} variant="ghost" isIconOnly label="Quay lại"><ArrowLeft className="w-5 h-5" /></OwnerButtonLink>
         <div>
-          <h1 className="text-2xl font-bold">Sửa cơ sở</h1>
-          <p className="text-sm text-[var(--muted)]">{venue.name}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold">Sửa cơ sở</h1>
+            <OwnerStatusChip kind="venue" status={venue.status} />
+          </div>
+          <p className="text-sm text-[var(--muted)]">Chỉ quản trị viên có thể thay đổi trạng thái cơ sở.</p>
         </div>
       </div>
 
-      <Card className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
+      {venue.status !== "Approved" && (
+        <Alert status={venue.status === "Rejected" ? "danger" : "warning"}>
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Cơ sở hiện chưa được công khai</Alert.Title>
+            <Alert.Description>Bạn vẫn có thể cập nhật thông tin; thao tác này không thay đổi trạng thái cơ sở.</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      )}
+
+      <Card className="border border-[var(--border)] bg-[var(--surface)]">
         <CardHeader className="p-5 pb-0">
           <CardTitle className="text-base font-semibold">Thông tin cơ sở</CardTitle>
         </CardHeader>
@@ -125,16 +143,14 @@ function EditVenueForm({ venueId }: { venueId: number }) {
 
             <TextField value={description} onChange={setDescription} aria-label="Mô tả">
               <Label>Mô tả</Label>
-              <Input />
+              <TextArea className="min-h-28" />
             </TextField>
 
-            {errors.form && <p className="text-sm text-[var(--danger)]">{errors.form}</p>}
+            {errors.form && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Description>{errors.form}</Alert.Description></Alert.Content></Alert>}
 
-            <div className="flex gap-3 pt-2">
-              <Link href={`/owner/venues/${venueId}`}>
-                <Button variant="ghost" isDisabled={submitting}>Hủy</Button>
-              </Link>
-              <Button variant="primary" type="submit" isDisabled={submitting} isPending={submitting}>
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+              <OwnerButtonLink href={`/owner/venues/${venueId}`} variant="ghost" className={submitting ? "pointer-events-none opacity-50" : undefined}>Hủy</OwnerButtonLink>
+              <Button variant="primary" type="submit" className="w-full sm:w-auto" isDisabled={submitting} isPending={submitting}>
                 Lưu thay đổi
               </Button>
             </div>

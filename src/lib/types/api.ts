@@ -115,6 +115,7 @@ export interface VenueSearchRequestDto {
 
 export interface VenueResponseDto {
   id: number;
+  courtOwnerProfileId: number;
   name: string;
   description: string | null;
   address: string;
@@ -124,14 +125,11 @@ export interface VenueResponseDto {
   openTime: string | null;
   closeTime: string | null;
   status: string;
-  ownerId: number;
-  ownerName?: string;
   createdAt: string;
   updatedAt: string | null;
   images: VenueImageDto[];
   amenities: VenueAmenityDto[];
   openingHours: OpeningHourDto[];
-  courts?: CourtDto[];
 }
 
 export interface VenueImageDto {
@@ -165,12 +163,14 @@ export interface CreateVenueRequestDto {
 }
 
 export interface UpdateVenueRequestDto {
-  name?: string;
+  name: string;
   description?: string;
-  address?: string;
-  latitude?: number;
-  longitude?: number;
+  address: string;
+  latitude?: number | null;
+  longitude?: number | null;
   phone?: string;
+  openTime?: string | null;
+  closeTime?: string | null;
 }
 
 export interface AddVenueImageRequestDto {
@@ -179,8 +179,7 @@ export interface AddVenueImageRequestDto {
 }
 
 export interface UpdateVenueStatusRequestDto {
-  status: string;
-  rejectionReason?: string;
+  status: 0 | 1 | 2 | 3;
 }
 
 export interface UpdateOpeningHoursRequestDto {
@@ -266,6 +265,28 @@ export interface BookingAvailabilityResponseDto {
   isAvailable: boolean;
   estimatedPrice: number | null;
   reason: string | null;
+}
+
+export interface VenueAvailabilitySlotDto {
+  startAt: string;
+  endAt: string;
+  status: "Available" | "Booked" | "Held" | "Maintenance" | "Closed";
+  estimatedPrice: number | null;
+  canStartBooking: boolean;
+}
+
+export interface VenueAvailabilityCourtDto {
+  id: number;
+  name: string;
+  sportId: number;
+  sportName: string;
+  slots: VenueAvailabilitySlotDto[];
+}
+
+export interface VenueAvailabilityResponseDto {
+  date: string;
+  venue: { id: number; name: string; address: string; openTime: string | null; closeTime: string | null; isClosed: boolean };
+  courts: VenueAvailabilityCourtDto[];
 }
 
 export interface UpdateBookingStatusRequestDto {
@@ -512,9 +533,6 @@ export interface UpdateSportRequestDto {
 export interface AmenityDto {
   id: number;
   name: string;
-  description: string | null;
-  iconUrl: string | null;
-  createdAt: string;
 }
 
 export interface CreateAmenityRequestDto {
@@ -527,23 +545,34 @@ export interface CreateAmenityRequestDto {
 /* COURT OWNER                                                        */
 /* ================================================================ */
 
-export interface CourtOwnerDetailDto {
+export interface CourtOwnerListItemDto {
   id: number;
   userId: number;
   fullName: string;
   email: string;
-  phoneNumber: string;
+  phone: string | null;
   businessName: string;
   verificationStatus: string;
-  verificationDocuments: string | null;
-  rejectionReason: string | null;
-  venueCount: number;
   createdAt: string;
+}
+
+export interface CourtOwnerDetailDto extends CourtOwnerListItemDto {
+  userProfileId: number;
+  avatarUrl: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  businessLicenseNo: string | null;
+  taxCode: string | null;
+  businessAddress: string | null;
+  rejectionReason: string | null;
   updatedAt: string | null;
 }
 
 export interface UpdateCourtOwnerVerificationStatusRequestDto {
-  status: string;
+  verificationStatus: 1 | 2;
   rejectionReason?: string;
 }
 

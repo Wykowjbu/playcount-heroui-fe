@@ -159,7 +159,7 @@ export function PlayerDiscoveryView({ user }: Props) {
 
       <main className="flex-1">
         {/* Inline setup cards */}
-        {(showLocationCard || showSportCard) && (
+        {showSportCard && (
           <section className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
               {showSportCard && (
@@ -169,15 +169,11 @@ export function PlayerDiscoveryView({ user }: Props) {
                   onSkip={handleSkipSports}
                 />
               )}
-              {showLocationCard && (
-                <LocationConsentCard
-                  onLocationResolved={handleLocationResolved}
-                  onSkip={handleSkipLocation}
-                />
-              )}
             </div>
           </section>
         )}
+
+        <LocationConsentCard isOpen={showLocationCard} onLocationResolved={handleLocationResolved} onSkip={handleSkipLocation} />
 
         {/* Recommended venues */}
         <RecommendedVenuesSection

@@ -4,6 +4,7 @@ import type {
   MatchResponseDto,
   SportDto,
   CourtDto,
+  VenueAvailabilityResponseDto,
   RatingStatsDto,
   ReviewResponseDto,
 } from "@/lib/types/api";
@@ -64,6 +65,14 @@ export async function getVenueCourts(venueId: number) {
   return res.data ?? [];
 }
 
+export async function getVenueAvailability(venueId: number, date: string) {
+  const res = await apiFetch<VenueAvailabilityResponseDto>(
+    `/venues/${venueId}/availability${buildQuery({ date })}`,
+    { skipAuth: true },
+  );
+  return res.data!;
+}
+
 export async function getVenueReviews(venueId: number, page = 1, pageSize = 10) {
   const res = await apiFetchPaged<ReviewResponseDto[]>(
     `/venues/${venueId}/reviews?page=${page}&pageSize=${pageSize}`,
@@ -98,6 +107,8 @@ function mapVenueToDiscovery(v: VenueResponseDto): DiscoveryVenue {
     imageUrl: cover?.imageUrl,
     isOpenNow: isVenueOpenNow(v.openTime, v.closeTime, v.openingHours),
     address: v.address ?? "",
+    latitude: v.latitude ?? undefined,
+    longitude: v.longitude ?? undefined,
     openTime: v.openTime ?? undefined,
     closeTime: v.closeTime ?? undefined,
     amenities: (v.amenities ?? []).map((a) => a.name),

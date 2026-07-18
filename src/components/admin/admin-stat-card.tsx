@@ -21,10 +21,10 @@ export function AdminStatCard({
   return (
     <Card
       className={cn(
-        "rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm"
+        "h-auto min-h-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm"
       )}
     >
-      <CardContent className="p-5">
+      <CardContent className="p-4">
         <div className="flex items-start gap-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-secondary)]">
             <Icon className="w-5 h-5" />
@@ -32,13 +32,13 @@ export function AdminStatCard({
 
           <div className="min-w-0 flex-1">
             <p className="text-sm text-[var(--muted)] font-medium">{title}</p>
-            <p className="text-3xl font-bold mt-1">{value}</p>
+            <p className="mt-0.5 text-2xl font-bold">{value}</p>
             {subtitle && (
               <p className="text-xs text-[var(--muted)] mt-1">{subtitle}</p>
             )}
             {ctaLabel && ctaHref && (
-              <Link href={ctaHref} className="mt-3">
-                <Button variant="ghost" size="sm" className="px-0">
+              <Link href={ctaHref}>
+                <Button variant="ghost" size="sm" className="mt-1 px-0">
                   {ctaLabel}
                 </Button>
               </Link>

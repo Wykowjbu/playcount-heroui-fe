@@ -200,8 +200,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     localStorage.removeItem(STORAGE_KEY);
     setUser(null);
-    router.push("/");
-  }, [router]);
+    window.location.replace("/");
+  }, []);
 
   /* ---- REFRESH USER (re-fetch /Users/me) ---- */
   const refreshUser = useCallback(async () => {

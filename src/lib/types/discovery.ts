@@ -12,6 +12,8 @@ export interface DiscoveryVenue {
   imageUrl?: string;
   isOpenNow: boolean;
   address: string;
+  latitude?: number;
+  longitude?: number;
   openTime?: string;
   closeTime?: string;
   amenities: string[];

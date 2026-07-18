@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Button, Card, Chip, Alert, Skeleton, Separator, FieldError, Form, Label, ListBox, Modal, Select, TextArea } from "@heroui/react";
+import { Button, Card, Chip, Alert, Skeleton, Separator, FieldError, Form, Label, ListBox, Modal, Select, Table, TextArea } from "@heroui/react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AuthGuard } from "@/lib/auth/guards";
 import { getBookingById, cancelBooking, confirmBooking, rejectBooking, completeBooking } from "@/lib/api/bookings";
@@ -10,13 +10,12 @@ import { createPayOsPayment, getBookingPayments } from "@/lib/api/payments";
 import { createReview, getMyReviews } from "@/lib/api/reviews";
 import { useAuth } from "@/lib/auth-context";
 import type { BookingResponseDto, PaymentDto, ReviewResponseDto } from "@/lib/types/api";
-import { getStatusConfig } from "@/lib/utils/status-labels";
+import { getStatusConfig, isTerminalBookingStatus } from "@/lib/utils/status-labels";
 import { formatDate, formatDateTime, formatTime, formatVnd } from "@/lib/utils/format";
 import ChevronLeft from "@gravity-ui/icons/ChevronLeft";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Clock from "@gravity-ui/icons/Clock";
 import Wallet from "@gravity-ui/icons/Wallet";
-import CircleCheck from "@gravity-ui/icons/CircleCheck";
 import Calendar from "@gravity-ui/icons/Calendar";
 
 /** Handle both "HH:mm:ss" and full datetime strings */
@@ -162,17 +161,13 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
   const hasSuccessfulPayment = payments.some((payment) => payment.status === "Success");
   const canPay = isPlayer && b.status === "Pending" && !hasSuccessfulPayment;
 
-  // Status timeline steps
-  const steps = [
-    { label: "Đặt sân", status: "Pending", done: true },
-    { label: "Xác nhận", status: "Confirmed", done: b.status === "Confirmed" || b.status === "Completed" },
-    { label: "Hoàn thành", status: "Completed", done: b.status === "Completed" },
-  ];
+  const latestPayment = payments.at(0);
+  const isTerminal = isTerminalBookingStatus(b.status);
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <SiteHeader />
-      <main className="mx-auto max-w-3xl px-4 pt-6 pb-24 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-6xl px-4 pt-8 pb-24 sm:px-6 lg:px-8">
         {/* Back link */}
         <Link href="/player/bookings" className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] mb-6">
           <ChevronLeft className="size-4" />
@@ -180,128 +175,61 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
         </Link>
 
         <div className="space-y-6">
-          {/* Header */}
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold text-[var(--foreground)]">
-              Đặt sân #{b.id}
-            </h1>
+            <h1 className="text-3xl font-bold text-[var(--foreground)]">Chi tiết đặt sân #{b.id}</h1>
             <Chip color={statusCfg.color}>{statusCfg.label}</Chip>
           </div>
 
-          {/* Status Timeline */}
-          {b.status !== "CancelledByUser" && b.status !== "CancelledByOwner" && (
-            <Card>
-              <Card.Content className="p-5">
-                <div className="flex items-center justify-between">
-                  {steps.map((s, i) => (
-                    <div key={s.status} className="flex items-center flex-1">
-                      <div className="flex flex-col items-center">
-                        <div
-                          className={`size-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                            s.done
-                              ? "bg-[var(--success)] text-white"
-                              : "bg-[var(--surface-secondary)] text-[var(--muted)]"
-                          }`}
-                        >
-                          {s.done ? <CircleCheck className="size-4" /> : i + 1}
-                        </div>
-                        <span className="mt-1 text-xs text-[var(--muted)]">{s.label}</span>
-                      </div>
-                      {i < steps.length - 1 && (
-                        <div className={`flex-1 h-0.5 mx-2 ${s.done ? "bg-[var(--success)]" : "bg-[var(--surface-secondary)]"}`} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </Card.Content>
-            </Card>
-          )}
+          {isTerminal && <Alert status={b.status === "Expired" ? "warning" : "default"}>
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>{b.status === "Expired" ? "Đặt sân đã hết hạn" : statusCfg.label}</Alert.Title>
+              <Alert.Description>Yêu cầu đặt sân này không còn hiệu lực.</Alert.Description>
+            </Alert.Content>
+          </Alert>}
 
-          {/* Venue & Court Info */}
-          <Card>
-            <Card.Content className="p-5 space-y-4">
-              <h2 className="font-semibold text-[var(--foreground)]">Thông tin sân</h2>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-start gap-2">
-                  <MapPin className="size-4 text-[var(--muted)] shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-[var(--foreground)]">{b.venueName}</p>
-                    <p className="text-[var(--muted)]">{b.courtName}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="size-4 text-[var(--muted)]" />
-                  <span>{formatDate(b.startAt)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="size-4 text-[var(--muted)]" />
-                  <span>{fmtTime(b.startAt)} - {fmtTime(b.endAt)}</span>
-                </div>
-              </div>
-            </Card.Content>
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="space-y-6">
+              <Card>
+                <Card.Header><Card.Title>Thông tin đặt sân</Card.Title></Card.Header>
+                <Card.Content className="space-y-5 px-5 pb-5">
+                  <div className="flex items-start gap-3"><MapPin className="mt-0.5 size-4 shrink-0 text-[var(--muted)]" /><div><p className="font-medium">{b.venueName}</p><p className="text-sm text-[var(--muted)]">{b.courtName}</p></div></div>
+                  <div className="grid gap-4 text-sm sm:grid-cols-2"><div><p className="text-[var(--muted)]">Ngày thi đấu</p><p className="mt-1 font-medium"><Calendar className="mr-1 inline size-4" />{formatDate(b.startAt)}</p></div><div><p className="text-[var(--muted)]">Thời gian</p><p className="mt-1 font-medium"><Clock className="mr-1 inline size-4" />{fmtTime(b.startAt)} – {fmtTime(b.endAt)}</p></div></div>
+                </Card.Content>
+              </Card>
 
-          {/* Payment Info */}
-          <Card>
-            <Card.Content className="p-5 space-y-4">
-              <h2 className="font-semibold text-[var(--foreground)]">Chi tiết thanh toán</h2>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-[var(--muted)]">Tiền sân</span>
-                  <span className="font-medium">{formatVnd(b.totalPrice - b.platformFee)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--muted)]">Phí nền tảng</span>
-                  <span className="font-medium">{formatVnd(b.platformFee)}</span>
-                </div>
+              {payments.length > 0 && <Card>
+                <Card.Header><Card.Title>Lịch sử thanh toán</Card.Title></Card.Header>
+                <Card.Content className="px-0 pb-0">
+                  <Table aria-label="Lịch sử thanh toán"><Table.Content><Table.Header><Table.Column isRowHeader>Thời gian</Table.Column><Table.Column>Phương thức</Table.Column><Table.Column>Số tiền</Table.Column><Table.Column>Trạng thái</Table.Column></Table.Header><Table.Body items={payments}>{(p) => <Table.Row><Table.Cell>{formatDateTime(p.paidAt ?? p.createdAt)}</Table.Cell><Table.Cell>{p.provider}</Table.Cell><Table.Cell>{formatVnd(p.amount)}</Table.Cell><Table.Cell><Chip color={getStatusConfig("payment", p.status).color} size="sm">{getStatusConfig("payment", p.status).label}</Chip></Table.Cell></Table.Row>}</Table.Body></Table.Content></Table>
+                </Card.Content>
+              </Card>}
+
+              {b.note && <Card><Card.Header><Card.Title>Ghi chú</Card.Title></Card.Header><Card.Content className="px-5 pb-5 text-sm text-[var(--muted)]">{b.note}</Card.Content></Card>}
+              {review && <Card><Card.Header><Card.Title>Đánh giá của bạn</Card.Title></Card.Header><Card.Content className="px-5 pb-5 text-sm">{review.rating}/5{review.reviewText ? ` · ${review.reviewText}` : ""}</Card.Content></Card>}
+              <p className="text-xs text-[var(--muted)]">Tạo lúc: {formatDateTime(b.createdAt)}{b.updatedAt && ` · Cập nhật: ${formatDateTime(b.updatedAt)}`}</p>
+            </div>
+
+            <Card className="h-fit lg:sticky lg:top-24">
+              <Card.Header className="flex items-center justify-between"><Card.Title>Tóm tắt</Card.Title><Chip color={statusCfg.color} size="sm">{statusCfg.label}</Chip></Card.Header>
+              <Card.Content className="space-y-3 px-5 pb-5 text-sm">
+                <div className="flex justify-between"><span className="text-[var(--muted)]">Tiền sân</span><span>{formatVnd(b.totalPrice - b.platformFee)}</span></div>
+                <div className="flex justify-between"><span className="text-[var(--muted)]">Phí nền tảng</span><span>{formatVnd(b.platformFee)}</span></div>
                 <Separator />
-                <div className="flex justify-between text-base font-bold">
-                  <span>Tổng cộng</span>
-                  <span className="text-[var(--accent)]">{formatVnd(b.totalPrice)}</span>
-                </div>
-              </div>
-
-              {payments.length > 0 && (
-                <>
-                  <Separator />
-                  <h3 className="font-medium text-[var(--foreground)]">Lịch sử thanh toán</h3>
-                  {payments.map((p) => (
-                    <div key={p.id} className="flex justify-between text-sm">
-                      <span className="text-[var(--muted)]">
-                        {p.provider} - {formatDateTime(p.createdAt)}
-                      </span>
-                      <Chip color={getStatusConfig("payment", p.status).color} size="sm">
-                        {getStatusConfig("payment", p.status).label}
-                      </Chip>
-                    </div>
-                  ))}
-                </>
-              )}
-            </Card.Content>
-          </Card>
-
-          {/* Notes */}
-          {b.note && (
-            <Card>
-              <Card.Content className="p-5">
-                <h2 className="font-semibold text-[var(--foreground)] mb-2">Ghi chú</h2>
-                <p className="text-sm text-[var(--muted)]">{b.note}</p>
+                <div className="flex justify-between text-base font-semibold"><span>Tổng cộng</span><span>{formatVnd(b.totalPrice)}</span></div>
+                {latestPayment && <div className="flex justify-between pt-2"><span className="text-[var(--muted)]">Thanh toán</span><Chip color={getStatusConfig("payment", latestPayment.status).color} size="sm">{getStatusConfig("payment", latestPayment.status).label}</Chip></div>}
               </Card.Content>
-            </Card>
-          )}
-
-          {/* Actions */}
-          {(canPay || canCancel || canConfirm || canReject || canComplete || (isPlayer && b.status === "Completed" && !review)) && (
-            <div className="flex flex-wrap gap-3">
+              {(canPay || canCancel || canConfirm || canReject || canComplete || (isPlayer && b.status === "Completed" && !review)) && <Card.Footer className="flex flex-col gap-2 px-5 pb-5">
               {canPay && (
-                <Button variant="primary" isDisabled={actionLoading} onPress={handlePay}>
+                <Button className="w-full" variant="primary" isPending={actionLoading} onPress={handlePay}>
                   {actionLoading ? "Đang xử lý..." : "Thanh toán ngay"}
                 </Button>
               )}
               {canConfirm && (
                 <Button
+                  className="w-full"
                   variant="primary"
-                  isDisabled={actionLoading}
+                  isPending={actionLoading}
                   onPress={() => handleAction(() => confirmBooking(b.id))}
                 >
                   Xác nhận
@@ -309,8 +237,9 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
               )}
               {canComplete && (
                 <Button
+                  className="w-full"
                   variant="primary"
-                  isDisabled={actionLoading}
+                  isPending={actionLoading}
                   onPress={() => handleAction(() => completeBooking(b.id))}
                 >
                   Hoàn thành
@@ -318,8 +247,9 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
               )}
               {canReject && (
                 <Button
+                  className="w-full"
                   variant="danger"
-                  isDisabled={actionLoading}
+                  isPending={actionLoading}
                   onPress={() => handleAction(() => rejectBooking(b.id))}
                 >
                   Từ chối
@@ -327,24 +257,19 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
               )}
               {canCancel && (
                 <Button
+                  className="w-full"
                   variant="danger"
-                  isDisabled={actionLoading}
+                  isPending={actionLoading}
                   onPress={() => handleAction(() => cancelBooking(b.id))}
                 >
                   Hủy đặt sân
                 </Button>
               )}
-              {isPlayer && b.status === "Completed" && !review && <Button variant="primary" onPress={() => setReviewOpen(true)}>Đánh giá sân</Button>}
-            </div>
-          )}
-
-          {review && <Card><Card.Content className="p-5"><h2 className="font-semibold">Đánh giá của bạn</h2><p className="mt-2 text-sm">{review.rating}/5{review.reviewText ? ` · ${review.reviewText}` : ""}</p></Card.Content></Card>}
-
-          {/* Meta */}
-          <p className="text-xs text-[var(--muted)]">
-            Tạo lúc: {formatDateTime(b.createdAt)}
-            {b.updatedAt && ` · Cập nhật: ${formatDateTime(b.updatedAt)}`}
-          </p>
+              {isPlayer && b.status === "Completed" && !review && <Button className="w-full" variant="primary" onPress={() => setReviewOpen(true)}>Đánh giá sân</Button>}
+              </Card.Footer>}
+              <Card.Footer className="px-5 pb-5 pt-0"><Link href={`/venues/${b.venueId}`}><Button variant="secondary" className="w-full">Xem trang sân</Button></Link></Card.Footer>
+            </Card>
+          </div>
         </div>
       </main>
       <Modal isOpen={reviewOpen} onOpenChange={setReviewOpen}><Modal.Backdrop><Modal.Container size="sm"><Modal.Dialog><Modal.CloseTrigger /><Modal.Header><Modal.Heading>Đánh giá sân</Modal.Heading></Modal.Header><Modal.Body><Form id="review-form" className="space-y-4" onSubmit={submitReview}><Select isRequired name="rating" placeholder="Chọn số sao"><Label>Số sao</Label><Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger><Select.Popover><ListBox>{[5,4,3,2,1].map((rating) => <ListBox.Item id={rating} key={rating} textValue={`${rating} sao`}>{rating} sao<ListBox.ItemIndicator /></ListBox.Item>)}</ListBox></Select.Popover><FieldError /></Select><TextArea name="reviewText" rows={4} placeholder="Chia sẻ trải nghiệm của bạn"><Label>Nội dung</Label></TextArea></Form></Modal.Body><Modal.Footer><Button variant="ghost" onPress={() => setReviewOpen(false)}>Hủy</Button><Button form="review-form" type="submit" isPending={actionLoading}>Gửi đánh giá</Button></Modal.Footer></Modal.Dialog></Modal.Container></Modal.Backdrop></Modal>

@@ -1,41 +1,45 @@
 "use client";
 
-import { Button, Badge, Avatar } from "@heroui/react";
+import { Button, Avatar, Drawer } from "@heroui/react";
 import Bars from "@gravity-ui/icons/Bars";
-import Bell from "@gravity-ui/icons/Bell";
-import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { OwnerSidebar } from "./owner-sidebar";
+import { NotificationDropdown } from "@/components/layout/notification-dropdown";
 
 interface TopbarProps {
   onToggleSidebar: () => void;
   sidebarCollapsed: boolean;
+  activeItem?: string;
 }
 
-export function OwnerTopbar({ onToggleSidebar }: TopbarProps) {
+export function OwnerTopbar({ activeItem, onToggleSidebar }: TopbarProps) {
   const { user } = useAuth();
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--background)] px-6 py-3">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--background)] px-4 sm:h-16 sm:px-6">
       <div className="flex items-center gap-3">
+        <Drawer>
+          <Button className="lg:hidden" isIconOnly variant="ghost" aria-label="Mở menu điều hướng"><Bars className="w-5 h-5" /></Button>
+          <Drawer.Backdrop>
+            <Drawer.Content placement="left" className="w-[280px]">
+              <Drawer.Dialog><Drawer.Body className="p-0"><OwnerSidebar mobile collapsed={false} activeItem={activeItem} /></Drawer.Body></Drawer.Dialog>
+            </Drawer.Content>
+          </Drawer.Backdrop>
+        </Drawer>
         <Button
           isIconOnly
           variant="ghost"
-          aria-label="Toggle sidebar"
+          aria-label="Thu gọn hoặc mở rộng thanh điều hướng"
           onPress={onToggleSidebar}
+          className="hidden lg:inline-flex"
         >
           <Bars className="w-5 h-5" />
         </Button>
-        <h1 className="text-lg font-semibold hidden sm:block">Quản lý sân</h1>
+        <p className="text-base font-semibold sm:text-lg">Quản lý chủ sân</p>
       </div>
 
       <div className="flex items-center gap-2">
-        <Badge.Anchor>
-          <Link href="/player/notifications">
-            <Button isIconOnly variant="ghost" aria-label="Thông báo">
-              <Bell className="w-5 h-5" />
-            </Button>
-          </Link>
-        </Badge.Anchor>
+        <NotificationDropdown />
 
         <Avatar size="sm">
           <Avatar.Fallback>

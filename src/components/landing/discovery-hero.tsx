@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Button,
   Card,
-  Chip,
   Select,
   Label,
   ListBox,
@@ -15,7 +14,7 @@ import {
 } from "@heroui/react";
 import type { DateValue } from "@internationalized/date";
 import type { Key } from "@heroui/react";
-import { Magnifier, MapPin } from "@gravity-ui/icons";
+import { Magnifier } from "@gravity-ui/icons";
 
 interface SportOption {
   id: number;
@@ -45,7 +44,7 @@ export function DiscoveryHero({ userName, userSports, availableSports = [], onSe
   };
 
   return (
-    <section className="relative bg-gradient-to-br from-accent via-accent/90 to-indigo-600 text-white overflow-hidden">
+    <section className="relative overflow-hidden bg-[var(--accent)] text-[var(--accent-foreground)]">
       {/* Decorative blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
@@ -55,7 +54,7 @@ export function DiscoveryHero({ userName, userSports, availableSports = [], onSe
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight leading-tight">
-            Chào <span className="text-amber-300">{firstName}</span>, tìm sân phù hợp hôm nay
+            Chào {firstName}, tìm sân phù hợp hôm nay
           </h1>
           <p className="mt-3 text-sm md:text-base text-white/80 max-w-lg mx-auto">
             Đặt sân nhanh, tìm kèo dễ hơn, theo đúng môn bạn hay chơi.
@@ -64,7 +63,7 @@ export function DiscoveryHero({ userName, userSports, availableSports = [], onSe
 
         {/* Search bar */}
         <div className="mt-8 max-w-4xl mx-auto">
-          <Card className="bg-white text-foreground shadow-xl rounded-2xl">
+          <Card className="bg-[var(--surface)] text-[var(--foreground)] shadow-xl">
             <Card.Content className="p-4 md:p-6">
               <div className="flex flex-col md:flex-row gap-3">
                 {/* Location input */}
@@ -129,16 +128,16 @@ export function DiscoveryHero({ userName, userSports, availableSports = [], onSe
         {(userSports.length > 0 || true) && (
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             {userSports.map((s) => (
-              <Chip key={s} variant="primary" size="sm" className="bg-white/20 text-white hover:bg-white/30 cursor-pointer">
+              <Button
+                key={s}
+                size="sm"
+                variant="outline"
+                className="border-current bg-transparent text-current"
+                onPress={() => setSelectedSport(availableSports.find((sport) => sport.name === s)?.id ?? null)}
+              >
                 {s}
-              </Chip>
+              </Button>
             ))}
-            <Chip variant="primary" size="sm" className="bg-white/20 text-white hover:bg-white/30 cursor-pointer">
-              <MapPin className="w-3 h-3 mr-1" />Gần tôi
-            </Chip>
-            <Chip variant="primary" size="sm" className="bg-white/20 text-white hover:bg-white/30 cursor-pointer">
-              Tối nay
-            </Chip>
           </div>
         )}
       </div>

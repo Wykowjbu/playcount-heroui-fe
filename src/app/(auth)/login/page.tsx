@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   Button,
+  Alert,
   Checkbox,
   Description,
   FieldError,
@@ -14,34 +15,24 @@ import {
   TextField,
   Tabs,
 } from "@heroui/react";
-import { motion, useReducedMotion } from "framer-motion";
+import { Eye, EyeSlash } from "@gravity-ui/icons";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
   const [tab, setTab] = useState<"login" | "register">("login");
-  const shouldReduceMotion = useReducedMotion();
-
-  const panelTransition = shouldReduceMotion
-    ? { duration: 0 }
-    : { duration: 0.18, ease: "easeOut" as const };
-
-  const panelInitial = shouldReduceMotion
-    ? false
-    : { opacity: 0, y: 8 };
-
-  const panelAnimate = shouldReduceMotion
-    ? { opacity: 1 }
-    : { opacity: 1, y: 0 };
-
   return (
     <AuthLayout>
       <div className="w-full max-w-md space-y-6">
         <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-bold">Chào mừng trở lại</h1>
+          <h1 className="text-2xl font-bold">
+            {tab === "login" ? "Chào mừng trở lại" : "Tạo tài khoản PlayCourt"}
+          </h1>
           <p className="text-sm text-[var(--muted)]">
-            Đăng nhập để tiếp tục sử dụng PlayCourt
+            {tab === "login"
+              ? "Đăng nhập để tiếp tục sử dụng PlayCourt"
+              : "Đặt sân và tìm đối thủ phù hợp chỉ trong vài phút"}
           </p>
         </div>
 
@@ -63,29 +54,15 @@ export default function LoginPage() {
             </Tabs.List>
           </Tabs.ListContainer>
 
-          <motion.div layout className="overflow-hidden pt-6" transition={panelTransition}>
+          <div className="overflow-hidden pt-6">
             <Tabs.Panel className="pt-0" id="login">
-              <motion.div
-                key={`login-${tab === "login" ? "active" : "inactive"}`}
-                initial={panelInitial}
-                animate={panelAnimate}
-                transition={panelTransition}
-              >
-                <LoginForm />
-              </motion.div>
+              <LoginForm />
             </Tabs.Panel>
 
             <Tabs.Panel className="pt-0" id="register">
-              <motion.div
-                key={`register-${tab === "register" ? "active" : "inactive"}`}
-                initial={panelInitial}
-                animate={panelAnimate}
-                transition={panelTransition}
-              >
-                <RegisterForm />
-              </motion.div>
+              <RegisterForm />
             </Tabs.Panel>
-          </motion.div>
+          </div>
         </Tabs>
 
         <Separator />
@@ -104,7 +81,7 @@ export default function LoginPage() {
 /* ───── Login Form ───── */
 
 function LoginForm() {
-  const { login } = useAuth();
+  const { loginWithRedirect } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -114,7 +91,8 @@ function LoginForm() {
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
     try {
-      await login({ identifier: data.email as string, password: data.password as string });
+      const redirectTo = new URLSearchParams(window.location.search).get("redirect") ?? undefined;
+      await loginWithRedirect({ identifier: data.email as string, password: data.password as string }, redirectTo);
     } catch (err: unknown) {
       const msg = err instanceof ApiError && err.errors.length > 0
         ? err.errors[0]
@@ -127,11 +105,7 @@ function LoginForm() {
 
   return (
     <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-      {error && (
-        <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <FormError>{error}</FormError>}
 
       <TextField isRequired className="w-full" name="email" type="email">
         <Label>Email</Label>
@@ -139,11 +113,7 @@ function LoginForm() {
         <FieldError />
       </TextField>
 
-      <TextField isRequired className="w-full" name="password" type="password">
-        <Label>Mật khẩu</Label>
-        <Input placeholder="••••••••" />
-        <FieldError />
-      </TextField>
+      <PasswordField name="password" label="Mật khẩu" />
 
       <div className="flex items-center justify-between">
         <Checkbox name="remember">
@@ -159,8 +129,8 @@ function LoginForm() {
         </Link>
       </div>
 
-      <Button className="w-full" isPending={isLoading} type="submit">
-        Đăng nhập
+      <Button className="w-full" size="lg" isPending={isLoading} type="submit">
+        {isLoading ? "Đang đăng nhập…" : "Đăng nhập"}
       </Button>
     </Form>
   );
@@ -203,11 +173,7 @@ function RegisterForm() {
 
   return (
     <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-      {error && (
-        <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <FormError>{error}</FormError>}
 
       <TextField isRequired className="w-full" name="fullName">
         <Label>Họ và tên</Label>
@@ -227,32 +193,22 @@ function RegisterForm() {
         <FieldError />
       </TextField>
 
-      <TextField
+      <PasswordField
         isRequired
-        className="w-full"
         minLength={6}
         name="password"
-        type="password"
+        label="Mật khẩu"
         validate={(v) =>
           v.length < 6 ? "Mật khẩu phải có ít nhất 6 ký tự" : null
         }
-      >
-        <Label>Mật khẩu</Label>
-        <Input placeholder="••••••••" />
-        <Description>Tối thiểu 6 ký tự</Description>
-        <FieldError />
-      </TextField>
+      />
+      <Description className="-mt-3 text-sm">Tối thiểu 6 ký tự</Description>
 
-      <TextField
+      <PasswordField
         isRequired
-        className="w-full"
         name="confirmPassword"
-        type="password"
-      >
-        <Label>Xác nhận mật khẩu</Label>
-        <Input placeholder="••••••••" />
-        <FieldError />
-      </TextField>
+        label="Xác nhận mật khẩu"
+      />
 
       <Checkbox isRequired name="terms">
         <Checkbox.Content>
@@ -266,9 +222,34 @@ function RegisterForm() {
         </Checkbox.Content>
       </Checkbox>
 
-      <Button className="w-full" isPending={isLoading} type="submit">
-        Đăng ký
+      <Button className="w-full" size="lg" isPending={isLoading} type="submit">
+        {isLoading ? "Đang đăng ký…" : "Đăng ký"}
       </Button>
     </Form>
+  );
+}
+
+function FormError({ children }: { children: string }) {
+  return <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Description>{children}</Alert.Description></Alert.Content></Alert>;
+}
+
+function PasswordField({ label, ...props }: React.ComponentProps<typeof TextField> & { label: string }) {
+  const [isVisible, setIsVisible] = useState(false);
+  return (
+    <TextField className="w-full" type={isVisible ? "text" : "password"} {...props}>
+      <Label>{label}</Label>
+      <Input placeholder="••••••••" />
+      <Button
+        aria-label={isVisible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+        className="-mt-10 ml-auto mr-1"
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        onPress={() => setIsVisible((value) => !value)}
+      >
+        {isVisible ? <EyeSlash className="size-4" /> : <Eye className="size-4" />}
+      </Button>
+      <FieldError />
+    </TextField>
   );
 }

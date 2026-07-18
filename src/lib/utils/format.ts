@@ -42,6 +42,8 @@ export function formatDateTime(dateStr: string | null | undefined): string {
 /** Format time only: "2024-03-15T10:30:00" → "10:30" */
 export function formatTime(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
+  const timeOnly = /^(\d{2}):(\d{2})/.exec(dateStr);
+  if (timeOnly) return `${timeOnly[1]}:${timeOnly[2]}`;
   try {
     return new Date(dateStr).toLocaleTimeString("vi-VN", {
       hour: "2-digit",

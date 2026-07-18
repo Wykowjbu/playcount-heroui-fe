@@ -5,7 +5,6 @@ import { Form, TextField, Label, Input, Description, FieldError, Select, ListBox
 import { parseDate } from "@internationalized/date";
 import Envelope from "@gravity-ui/icons/Envelope";
 import FloppyDisk from "@gravity-ui/icons/FloppyDisk";
-import { useAuth } from "@/lib/auth-context";
 import { updateMyProfile } from "@/lib/api/profile";
 import type { UserProfileResponseDto, UpdateUserProfileRequestDto } from "@/lib/types/profile";
 import { GENDER_OPTIONS } from "@/lib/types/profile";
@@ -16,7 +15,6 @@ interface Props {
 }
 
 export function ProfilePersonalForm({ profile, onProfileUpdate }: Props) {
-  const { user } = useAuth();
 
   const [fullName, setFullName] = useState(profile.fullName ?? "");
   const [gender, setGender] = useState<string>(profile.gender != null ? String(mapGenderToKey(profile.gender)) : "");

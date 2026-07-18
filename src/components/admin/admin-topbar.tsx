@@ -1,11 +1,5 @@
-import {
-  Button,
-  Badge,
-  Avatar,
-  SearchField,
-} from "@heroui/react";
+import { Avatar, Button } from "@heroui/react";
 import Bars from "@gravity-ui/icons/Bars";
-import Bell from "@gravity-ui/icons/Bell";
 
 interface AdminTopbarProps {
   onToggleSidebar: () => void;
@@ -14,8 +8,7 @@ interface AdminTopbarProps {
 
 export function AdminTopbar({ onToggleSidebar, sidebarCollapsed }: AdminTopbarProps) {
   return (
-    <header className="sticky top-0 z-30 h-20 flex items-center justify-between px-6 gap-4 bg-[var(--background)] border-b border-[var(--border)]">
-      {/* Left section */}
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--background)] px-6">
       <div className="flex items-center gap-3">
         <Button
           isIconOnly
@@ -25,44 +18,9 @@ export function AdminTopbar({ onToggleSidebar, sidebarCollapsed }: AdminTopbarPr
         >
           <Bars className="w-5 h-5" />
         </Button>
-        <div>
-          <h1 className="text-lg font-bold">Tổng quan Admin</h1>
-          <p className="text-xs text-[var(--muted)]">Theo dõi hàng chờ xử lý trong hệ thống</p>
-        </div>
+        <p className="text-sm font-semibold">Quản trị hệ thống</p>
       </div>
-
-      {/* Right section */}
-      <div className="flex items-center gap-3">
-        <SearchField name="admin-search" variant="primary" className="hidden sm:flex w-64">
-          <SearchField.Group>
-            <SearchField.SearchIcon />
-            <SearchField.Input placeholder="Search cơ sở, chủ sân..." />
-            <SearchField.ClearButton />
-          </SearchField.Group>
-        </SearchField>
-
-        <Badge.Anchor>
-          <Button
-            isIconOnly
-            variant="ghost"
-            aria-label="Thông báo"
-            className="text-[var(--muted)]"
-          >
-            <Bell className="w-5 h-5" />
-          </Button>
-          <Badge
-            color="danger"
-            size="sm"
-            className="min-w-[18px] h-[18px] text-[10px] px-1"
-          >
-            8
-          </Badge>
-        </Badge.Anchor>
-
-        <Avatar size="sm">
-          <Avatar.Fallback>A</Avatar.Fallback>
-        </Avatar>
-      </div>
+      <Avatar size="sm"><Avatar.Fallback>AD</Avatar.Fallback></Avatar>
     </header>
   );
 }

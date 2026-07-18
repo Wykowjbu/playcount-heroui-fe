@@ -1,230 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  Button,
-  Spinner,
-  Chip,
-  Avatar,
-  Select,
-  Label,
-  ListBox,
-  Modal,
-  TextField,
-  Input,
-} from "@heroui/react";
+import { useCallback, useEffect, useState } from "react";
 import type { Key } from "@heroui/react";
-
-import Check from "@gravity-ui/icons/Check";
-import Xmark from "@gravity-ui/icons/Xmark";
+import { Alert, Avatar, Button, Chip, EmptyState, Input, Label, ListBox, Modal, Select, Spinner, Table, TextField } from "@heroui/react";
+import Eye from "@gravity-ui/icons/Eye";
 import PersonGear from "@gravity-ui/icons/PersonGear";
-
 import { AdminGuard } from "@/lib/auth/guards";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getCourtOwners, updateOwnerVerification } from "@/lib/api/admin";
-import type { CourtOwnerDetailDto } from "@/lib/types/api";
+import { getCourtOwnerById, getCourtOwners, updateOwnerVerification } from "@/lib/api/admin";
+import type { CourtOwnerDetailDto, CourtOwnerListItemDto } from "@/lib/types/api";
 import { formatDate } from "@/lib/utils/format";
 import { getStatusConfig } from "@/lib/utils/status-labels";
 
-const STATUS_OPTIONS = [
-  { key: "", label: "Tất cả" },
-  { key: "Pending", label: "Chờ xác minh" },
-  { key: "Approved", label: "Đã xác minh" },
-  { key: "Rejected", label: "Bị từ chối" },
-];
+const STATUS_OPTIONS = [{ key: "", label: "Tất cả" }, { key: "Pending", label: "Chờ xác minh" }, { key: "Approved", label: "Đã xác minh" }, { key: "Rejected", label: "Bị từ chối" }];
 
-export default function AdminCourtOwnersPage() {
-  return (
-    <AdminGuard>
-      <AdminShell>
-        <CourtOwnersContent />
-      </AdminShell>
-    </AdminGuard>
-  );
-}
+export default function AdminCourtOwnersPage() { return <AdminGuard><AdminShell><CourtOwnersContent /></AdminShell></AdminGuard>; }
 
 function CourtOwnersContent() {
-  const [owners, setOwners] = useState<CourtOwnerDetailDto[]>([]);
-  const [statusFilter, setStatusFilter] = useState<Key | null>("");
+  const [owners, setOwners] = useState<CourtOwnerListItemDto[]>([]);
+  const [filter, setFilter] = useState<Key | null>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [selectedOwner, setSelectedOwner] = useState<CourtOwnerDetailDto | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
+  const [selected, setSelected] = useState<CourtOwnerDetailDto | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
 
-  async function loadOwners(status?: string) {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getCourtOwners(status || undefined);
-      setOwners(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Lỗi");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const load = useCallback(async () => { setLoading(true); setError(null); try { setOwners(await getCourtOwners(filter ? String(filter) : undefined)); } catch (e) { setError(e instanceof Error ? e.message : "Không thể tải hồ sơ"); } finally { setLoading(false); } }, [filter]);
+  useEffect(() => { void load(); }, [load]);
+  async function review(id: number) { setDetailLoading(true); setError(null); try { setSelected(await getCourtOwnerById(id)); setRejecting(false); setReason(""); } catch (e) { setError(e instanceof Error ? e.message : "Không thể tải chi tiết hồ sơ"); } finally { setDetailLoading(false); } }
+  async function update(verificationStatus: 1 | 2) { if (!selected) return; if (verificationStatus === 2 && !reason.trim()) return; setPending(true); setError(null); try { await updateOwnerVerification(selected.id, { verificationStatus, rejectionReason: verificationStatus === 2 ? reason.trim() : undefined }); setSelected(null); await load(); } catch (e) { setError(e instanceof Error ? e.message : "Không thể cập nhật hồ sơ"); } finally { setPending(false); } }
 
-  useEffect(() => {
-    const statusVal = statusFilter != null && statusFilter !== "" ? String(statusFilter) : undefined;
-    loadOwners(statusVal);
-  }, [statusFilter]);
+  return <div className="space-y-5">
+    <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-2xl font-bold">Xác minh chủ sân</h1><p className="mt-1 text-sm text-[var(--muted)]">{owners.length} hồ sơ</p></div><Select selectedKey={filter} onSelectionChange={setFilter} className="w-52" aria-label="Lọc theo trạng thái"><Label>Trạng thái</Label><Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger><Select.Popover><ListBox items={STATUS_OPTIONS}>{(item) => <ListBox.Item id={item.key} textValue={item.label}>{item.label}<ListBox.ItemIndicator /></ListBox.Item>}</ListBox></Select.Popover></Select></div>
+    {error && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content></Alert>}
+    {loading ? <div className="flex h-48 items-center justify-center"><Spinner size="lg" /></div> : owners.length === 0 ? <EmptyState className="py-12 text-center"><PersonGear className="mx-auto mb-3 size-8 text-[var(--muted)]" /><p className="font-medium">Không có hồ sơ</p></EmptyState> :
+      <Table aria-label="Danh sách hồ sơ chủ sân"><Table.ScrollContainer><Table.Content>
+        <Table.Header><Table.Column isRowHeader>Chủ sân</Table.Column><Table.Column>Doanh nghiệp</Table.Column><Table.Column>Liên hệ</Table.Column><Table.Column>Trạng thái</Table.Column><Table.Column>Ngày đăng ký</Table.Column><Table.Column>Thao tác</Table.Column></Table.Header>
+        <Table.Body items={owners}>{(owner) => { const status = getStatusConfig("ownerVerification", owner.verificationStatus); return <Table.Row id={owner.id}>
+          <Table.Cell><div className="flex items-center gap-3"><Avatar size="sm"><Avatar.Fallback>{initials(owner.fullName)}</Avatar.Fallback></Avatar><div><p className="font-medium">{owner.fullName}</p><p className="text-xs text-[var(--muted)]">{owner.email}</p></div></div></Table.Cell>
+          <Table.Cell>{owner.businessName || "—"}</Table.Cell><Table.Cell>{owner.phone || "—"}</Table.Cell><Table.Cell><Chip size="sm" color={status.color} variant="soft">{status.label}</Chip></Table.Cell><Table.Cell>{formatDate(owner.createdAt)}</Table.Cell>
+          <Table.Cell><Button size="sm" variant="ghost" isDisabled={detailLoading} onPress={() => review(owner.id)}><Eye className="size-4" />Xem hồ sơ</Button></Table.Cell>
+        </Table.Row>; }}</Table.Body>
+      </Table.Content></Table.ScrollContainer></Table>}
 
-  async function handleApprove(ownerId: number) {
-    setActionLoading(ownerId);
-    try {
-      await updateOwnerVerification(ownerId, { status: "Approved" });
-      const statusVal = statusFilter != null && statusFilter !== "" ? String(statusFilter) : undefined;
-      loadOwners(statusVal);
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Thao tác thất bại");
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  function openRejectModal(owner: CourtOwnerDetailDto) {
-    setSelectedOwner(owner);
-    setRejectReason("");
-    setModalOpen(true);
-  }
-
-  async function handleReject() {
-    if (!selectedOwner) return;
-    setActionLoading(selectedOwner.id);
-    try {
-      await updateOwnerVerification(selectedOwner.id, { status: "Rejected", rejectionReason: rejectReason || undefined });
-      const statusVal = statusFilter != null && statusFilter !== "" ? String(statusFilter) : undefined;
-      loadOwners(statusVal);
-      setModalOpen(false);
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Thao tác thất bại");
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Xác minh chủ sân</h1>
-        <p className="text-sm text-[var(--muted)] mt-1">Quản lý hồ sơ chủ sân</p>
-      </div>
-
-      <Select
-        placeholder="Tất cả"
-        selectedKey={statusFilter}
-        onSelectionChange={(key) => setStatusFilter(key)}
-        className="w-52"
-        aria-label="Lọc theo trạng thái"
-      >
-        <Label>Trạng thái</Label>
-        <Select.Trigger>
-          <Select.Value />
-          <Select.Indicator />
-        </Select.Trigger>
-        <Select.Popover>
-          <ListBox items={STATUS_OPTIONS}>
-            {(item) => (
-              <ListBox.Item key={item.key} id={item.key} textValue={item.label}>
-                {item.label}
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-            )}
-          </ListBox>
-        </Select.Popover>
-      </Select>
-
-      {loading ? (
-        <div className="flex h-48 items-center justify-center"><Spinner size="lg" /></div>
-      ) : error ? (
-        <div className="flex h-48 items-center justify-center"><p className="text-[var(--danger)]">{error}</p></div>
-      ) : owners.length === 0 ? (
-        <Card className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-          <CardContent className="p-12 flex flex-col items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-[var(--surface-secondary)] flex items-center justify-center">
-              <PersonGear className="w-8 h-8 text-[var(--muted)]" />
-            </div>
-            <p className="text-[var(--muted)]">Không có hồ sơ nào</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {owners.map((o) => {
-            const cfg = getStatusConfig("ownerVerification", o.verificationStatus);
-            return (
-              <Card key={o.id} className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-                <CardContent className="p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <Avatar size="md">
-                        <Avatar.Fallback>{o.fullName?.split(" ").slice(-2).map((w) => w[0]).join("").toUpperCase() || "?"}</Avatar.Fallback>
-                      </Avatar>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold">{o.fullName}</p>
-                          <Chip size="sm" color={cfg.color} variant="soft">{cfg.label}</Chip>
-                        </div>
-                        <p className="text-sm text-[var(--muted)]">{o.email}</p>
-                        <p className="text-sm text-[var(--muted)]">{o.businessName} · {o.phoneNumber} · {o.venueCount} cơ sở</p>
-                        <p className="text-xs text-[var(--muted)] mt-1">Đăng ký: {formatDate(o.createdAt)}</p>
-                        {o.rejectionReason && <p className="text-xs text-[var(--danger)] mt-1">Lý do từ chối: {o.rejectionReason}</p>}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      {o.verificationStatus === "Pending" && (
-                        <>
-                          <Button variant="primary" size="sm" isDisabled={actionLoading === o.id} onPress={() => handleApprove(o.id)}>
-                            {actionLoading === o.id ? <Spinner size="sm" /> : "Duyệt"}
-                          </Button>
-                          <Button variant="danger" size="sm" isDisabled={actionLoading === o.id} onPress={() => openRejectModal(o)}>
-                            Từ chối
-                          </Button>
-                        </>
-                      )}
-                      {o.verificationStatus === "Rejected" && (
-                        <Button variant="primary" size="sm" isDisabled={actionLoading === o.id} onPress={() => handleApprove(o.id)}>
-                          {actionLoading === o.id ? <Spinner size="sm" /> : "Duyệt lại"}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      <Modal isOpen={modalOpen}>
-        <Modal.Backdrop>
-          <Modal.Container>
-            <Modal.Dialog className="sm:max-w-md">
-              <Modal.CloseTrigger />
-              <Modal.Header>
-                <Modal.Heading>Từ chối hồ sơ</Modal.Heading>
-              </Modal.Header>
-              <Modal.Body>
-                <p className="text-sm text-[var(--muted)] mb-2">{selectedOwner?.fullName} — {selectedOwner?.businessName}</p>
-                <TextField value={rejectReason} onChange={(v) => setRejectReason(String(v))} aria-label="Lý do từ chối">
-                  <Label>Lý do từ chối</Label>
-                  <Input placeholder="Nhập lý do..." />
-                </TextField>
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="ghost" slot="close" isDisabled={actionLoading !== null}>Hủy</Button>
-                <Button variant="danger" isDisabled={actionLoading !== null} onPress={handleReject}>
-                  {actionLoading !== null ? <Spinner size="sm" className="mr-2" /> : null}
-                  Từ chối
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
-    </div>
-  );
+    <Modal isOpen={Boolean(selected)} onOpenChange={(open) => { if (!open) setSelected(null); }}><Modal.Backdrop><Modal.Container><Modal.Dialog className="sm:max-w-xl"><Modal.CloseTrigger /><Modal.Header><Modal.Heading>Hồ sơ chủ sân</Modal.Heading></Modal.Header><Modal.Body>{selected && <div className="space-y-4"><div className="grid gap-2 text-sm sm:grid-cols-2"><Info label="Họ tên" value={selected.fullName} /><Info label="Email" value={selected.email} /><Info label="Điện thoại" value={selected.phone} /><Info label="Doanh nghiệp" value={selected.businessName} /><Info label="Giấy phép kinh doanh" value={selected.businessLicenseNo} /><Info label="Mã số thuế" value={selected.taxCode} /><Info label="Địa chỉ kinh doanh" value={selected.businessAddress} /><Info label="Đăng ký" value={formatDate(selected.createdAt)} /></div>{selected.rejectionReason && <Alert status="warning"><Alert.Indicator /><Alert.Content><Alert.Description>Lý do từ chối trước đó: {selected.rejectionReason}</Alert.Description></Alert.Content></Alert>}{rejecting && <TextField value={reason} onChange={(value) => setReason(String(value))} isRequired><Label>Lý do từ chối</Label><Input placeholder="Nêu lý do để chủ sân có thể bổ sung hồ sơ" /></TextField>}</div>}</Modal.Body><Modal.Footer><Button variant="ghost" onPress={() => setSelected(null)} isDisabled={pending}>Đóng</Button>{selected?.verificationStatus !== "Approved" && <Button onPress={() => update(1)} isDisabled={pending}>{pending && <Spinner size="sm" />}Duyệt</Button>}{selected?.verificationStatus === "Pending" && (!rejecting ? <Button variant="danger" onPress={() => setRejecting(true)} isDisabled={pending}>Từ chối</Button> : <Button variant="danger" onPress={() => update(2)} isDisabled={pending || !reason.trim()}>{pending && <Spinner size="sm" />}Xác nhận từ chối</Button>)}</Modal.Footer></Modal.Dialog></Modal.Container></Modal.Backdrop></Modal>
+  </div>;
 }
+
+function initials(name: string) { return name.split(" ").filter(Boolean).slice(-2).map((part) => part[0]).join("").toUpperCase() || "?"; }
+function Info({ label, value }: { label: string; value: string | null }) { return <div><p className="text-xs text-[var(--muted)]">{label}</p><p className="font-medium">{value || "—"}</p></div>; }

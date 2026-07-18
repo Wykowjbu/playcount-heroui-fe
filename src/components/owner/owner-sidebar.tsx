@@ -24,7 +24,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Tổng quan", icon: House, href: "/owner" },
-  { id: "venues", label: "Quản lý sân", icon: MapPin, href: "/owner/venues" },
+  { id: "venues", label: "Cơ sở của tôi", icon: MapPin, href: "/owner/venues" },
   { id: "bookings", label: "Đơn đặt sân", icon: Calendar, href: "/owner/bookings" },
   { id: "reviews", label: "Đánh giá", icon: Star, href: "/owner/reviews" },
 ];
@@ -37,6 +37,7 @@ const FOOTER_ITEMS: NavItem[] = [
 interface SidebarProps {
   collapsed: boolean;
   activeItem?: string;
+  mobile?: boolean;
 }
 
 function SidebarLabel({ collapsed, children }: { collapsed: boolean; children: ReactNode }) {
@@ -56,7 +57,7 @@ function SidebarLabel({ collapsed, children }: { collapsed: boolean; children: R
   );
 }
 
-export function OwnerSidebar({ collapsed, activeItem }: SidebarProps) {
+export function OwnerSidebar({ collapsed, activeItem, mobile = false }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
@@ -66,7 +67,7 @@ export function OwnerSidebar({ collapsed, activeItem }: SidebarProps) {
   }
 
   return (
-    <aside className="h-full overflow-hidden border-r border-[var(--border)] bg-[var(--background)]">
+    <aside className={cn("h-full overflow-hidden bg-[var(--background)]", !mobile && "hidden border-r border-[var(--border)] lg:block")}>
       <div className="px-3 py-4">
         {/* Header */}
         <div
@@ -100,7 +101,7 @@ export function OwnerSidebar({ collapsed, activeItem }: SidebarProps) {
         {/* Navigation */}
         <nav aria-label="Owner navigation" className="flex flex-col gap-1 mt-4">
           {NAV_ITEMS.map((item) => {
-            const active = isActiveItem(item);
+            const active = isActiveItem(item) || activeItem === item.id;
             return (
               <Link
                 key={item.id}

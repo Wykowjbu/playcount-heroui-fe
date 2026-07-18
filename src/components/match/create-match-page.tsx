@@ -17,26 +17,29 @@ import type { SportDto } from "@/lib/types/api";
 import ChevronLeft from "@gravity-ui/icons/ChevronLeft";
 import CalendarIcon from "@gravity-ui/icons/Calendar";
 import type { Key } from "@heroui/react";
+import { VenueMapPicker } from "./venue-map-picker";
 
-export function CreateMatchPage() {
+export function CreateMatchPage({ embedded = false }: { embedded?: boolean }) {
   return (
     <PlayerGuard>
-      <CreateMatchContent />
+      <CreateMatchContent embedded={embedded} />
     </PlayerGuard>
   );
 }
 
-function CreateMatchContent() {
+function CreateMatchContent({ embedded }: { embedded: boolean }) {
   const router = useRouter();
 
   const [sports, setSports] = useState<SportDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form state
   const [sportId, setSportId] = useState<Key | null>(null);
   const [locationDesc, setLocationDesc] = useState("");
+  const [courtId, setCourtId] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<DateValue | null>(null);
   const [startTime, setStartTime] = useState<Time | null>(null);
   const [endTime, setEndTime] = useState<Time | null>(null);
@@ -50,6 +53,7 @@ function CreateMatchContent() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    setMounted(true);
     getAllSports()
       .then(setSports)
       .catch(() => {})
@@ -84,6 +88,7 @@ function CreateMatchContent() {
 
       const match = await createMatch({
         sportId: Number(sportId),
+        courtId: courtId ?? undefined,
         locationDescription: locationDesc,
         startAt,
         endAt,
@@ -102,10 +107,10 @@ function CreateMatchContent() {
     }
   };
 
-  if (loading) {
+  if (loading || !mounted) {
     return (
-      <div className="min-h-screen bg-[var(--background)]">
-        <SiteHeader />
+      <div className={embedded ? "p-6" : "min-h-screen bg-[var(--background)]"}>
+        {!embedded && <SiteHeader />}
         <main className="mx-auto max-w-2xl px-4 pt-6 sm:px-6 lg:px-8">
           <Skeleton className="h-8 w-48 rounded-lg mb-6" />
           <Skeleton className="h-96 w-full rounded-xl" />
@@ -115,18 +120,18 @@ function CreateMatchContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      <SiteHeader />
-      <main className="mx-auto max-w-2xl px-4 pt-6 pb-24 sm:px-6 lg:px-8">
-        <Link
+    <div className={embedded ? "" : "min-h-screen bg-[var(--background)]"}>
+      {!embedded && <SiteHeader />}
+      <main className={embedded ? "px-0 py-6" : "mx-auto max-w-2xl px-4 pt-6 pb-24 sm:px-6 lg:px-8"}>
+        {!embedded && <Link
           href="/matches"
           className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] mb-6"
         >
           <ChevronLeft className="size-4" />
           Quay lại
-        </Link>
+        </Link>}
 
-        <h1 className="mb-6 text-2xl font-bold text-[var(--foreground)]">Tạo kèo đấu mới</h1>
+        {!embedded && <h1 className="mb-6 text-2xl font-bold text-[var(--foreground)]">Tạo kèo đấu mới</h1>}
 
         {error && (
           <Alert status="danger" className="mb-6">
@@ -137,9 +142,9 @@ function CreateMatchContent() {
           </Alert>
         )}
 
-        <Form onSubmit={handleSubmit} className="space-y-6">
-          <Card>
-            <Card.Content className="p-5 space-y-5">
+        <Form id={embedded ? "create-match-form" : undefined} onSubmit={handleSubmit} className="space-y-6">
+          <Card variant={embedded ? "transparent" : "default"}>
+            <Card.Content className={embedded ? "space-y-5 p-0" : "space-y-5 p-5"}>
               {/* Sport */}
               <Select
                 className="w-full"
@@ -163,23 +168,41 @@ function CreateMatchContent() {
                   </ListBox>
                 </Select.Popover>
               </Select>
+
               {errors.sportId && <p className="text-sm text-[var(--danger)]">{errors.sportId}</p>}
 
               {/* Location */}
-              <TextField
-                className="w-full"
-                isRequired
-                value={locationDesc}
-                onChange={setLocationDesc}
-                isInvalid={!!errors.locationDesc}
-              >
-                <Label>Địa điểm</Label>
-                <Input placeholder="VD: Sân cầu lông ABC, quận 1" />
-                {errors.locationDesc && <FieldError>{errors.locationDesc}</FieldError>}
-              </TextField>
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <TextField
+                  className="w-full"
+                  isRequired
+                  value={locationDesc}
+                  onChange={setLocationDesc}
+                  isInvalid={!!errors.locationDesc}
+                >
+                  <Label>Địa điểm</Label>
+                  <Input placeholder="VD: Sân cầu lông ABC, quận 1" />
+                  {errors.locationDesc && <FieldError>{errors.locationDesc}</FieldError>}
+                </TextField>
+                <VenueMapPicker
+                  className="w-full sm:w-auto"
+                  sportId={sportId != null ? Number(sportId) : null}
+                  onSelect={({ courtId: nextCourtId, locationDescription, startAt, endAt }) => {
+                    setCourtId(nextCourtId);
+                    setLocationDesc(locationDescription);
+                    setSelectedDate(parseDate(startAt.slice(0, 10)));
+                    setStartTime(new Time(Number(startAt.slice(11, 13)), Number(startAt.slice(14, 16))));
+                    setEndTime(new Time(Number(endAt.slice(11, 13)), Number(endAt.slice(14, 16))));
+                  }}
+                />
+              </div>
 
-              {/* Date */}
-              <DatePicker
+              {courtId && selectedDate && startTime && endTime ? <Card variant="secondary">
+                <Card.Content className="flex items-center justify-between gap-4 p-4">
+                  <div><p className="font-medium">Sân và thời gian đã chọn</p><p className="mt-1 text-sm text-[var(--muted)]">{locationDesc}</p><p className="text-sm text-[var(--muted)]">{selectedDate.toString()} · {String(startTime.hour).padStart(2, "0")}:{String(startTime.minute).padStart(2, "0")}–{String(endTime.hour).padStart(2, "0")}:{String(endTime.minute).padStart(2, "0")}</p></div>
+                  <Button variant="outline" onPress={() => setCourtId(null)}>Đổi sân/giờ</Button>
+                </Card.Content>
+              </Card> : <><DatePicker
                 className="w-full"
                 value={selectedDate}
                 onChange={setSelectedDate}
@@ -227,6 +250,7 @@ function CreateMatchContent() {
                   value={startTime}
                   onChange={setStartTime}
                   isInvalid={!!errors.startTime}
+                  hourCycle={24}
                 >
                   <Label isRequired>Giờ bắt đầu</Label>
                   <TimeField.Group>
@@ -242,6 +266,7 @@ function CreateMatchContent() {
                   value={endTime}
                   onChange={setEndTime}
                   isInvalid={!!errors.endTime}
+                  hourCycle={24}
                 >
                   <Label isRequired>Giờ kết thúc</Label>
                   <TimeField.Group>
@@ -251,7 +276,7 @@ function CreateMatchContent() {
                   </TimeField.Group>
                 </TimeField>
                 {errors.endTime && <p className="text-sm text-[var(--danger)]">{errors.endTime}</p>}
-              </div>
+              </div></>}
 
               {/* Max Participants */}
               <NumberField
@@ -333,7 +358,7 @@ function CreateMatchContent() {
           </Card>
 
           {/* Submit */}
-          <Button
+          {!embedded && <Button
             type="submit"
             className="w-full"
             size="lg"
@@ -341,7 +366,7 @@ function CreateMatchContent() {
             isDisabled={submitting}
           >
             {submitting ? "Đang tạo kèo..." : "Tạo kèo đấu"}
-          </Button>
+          </Button>}
         </Form>
       </main>
     </div>

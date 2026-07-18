@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@/lib/auth-context";
 import { getMyProfile } from "@/lib/api/profile";
 import type { UserProfileResponseDto } from "@/lib/types/profile";
-import { Alert } from "@heroui/react";
+import { Alert, Card, CardContent } from "@heroui/react";
 import { ProfileSummaryCard } from "./ProfileSummaryCard";
 import { ProfilePersonalForm } from "./ProfilePersonalForm";
 import { PlayerSportsPanel } from "./PlayerSportsPanel";
@@ -19,7 +18,6 @@ interface Props {
 }
 
 export function ProfilePageShell({ role }: Props) {
-  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfileResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +68,6 @@ export function ProfilePageShell({ role }: Props) {
     : [
         { id: "personal", label: "Cá nhân", icon: Person },
         { id: "business", label: "Kinh doanh", icon: Star },
-        { id: "security", label: "Bảo mật", icon: Lock },
       ];
 
   return (
@@ -82,10 +79,8 @@ export function ProfilePageShell({ role }: Props) {
 
       {/* Right: Profile Card - flex-1, max ~760px */}
       <div className="flex-1 min-w-0 lg:max-w-[760px]">
-        <div
-          className="rounded-2xl border border-border p-5 sm:p-6 lg:p-7"
-          style={{ background: "var(--surface)" }}
-        >
+        <Card className="!h-auto !min-h-0 border border-border bg-[var(--surface)]">
+          <CardContent className="p-5 sm:p-6 lg:p-7">
           <Tabs selectedKey={selectedTab} onSelectionChange={(key) => setSelectedTab(key as string)}>
             <Tabs.ListContainer>
               <Tabs.List aria-label="Hồ sơ">
@@ -118,7 +113,7 @@ export function ProfilePageShell({ role }: Props) {
                 </Tabs.Panel>
               )}
 
-              <Tabs.Panel id="security">
+              {role === "player" && <Tabs.Panel id="security">
                 <div className="max-w-[640px]">
                   <div
                     className="rounded-xl border border-border p-5"
@@ -135,10 +130,11 @@ export function ProfilePageShell({ role }: Props) {
                     </div>
                   </div>
                 </div>
-              </Tabs.Panel>
+              </Tabs.Panel>}
             </div>
           </Tabs>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

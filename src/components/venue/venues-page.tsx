@@ -203,20 +203,6 @@ export function VenuesPage() {
           </div>
         </section>
 
-        {/* Search Bar (inline, visible on all sizes) */}
-        <section className="pb-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <VenueFilterForm
-              sports={sports}
-              values={filters}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-              showKeyword
-              compact
-            />
-          </div>
-        </section>
-
         {/* Main Content */}
         <section className="pb-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -232,7 +218,7 @@ export function VenuesPage() {
                     values={filters}
                     onApply={handleApplyFilters}
                     onClear={handleClearFilters}
-                    showKeyword={false}
+                    showKeyword
                   />
                 </div>
               </aside>

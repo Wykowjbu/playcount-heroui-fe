@@ -129,6 +129,10 @@ export function getStatusLabel(kind: StatusKind, value: string | null | undefine
   return getStatusConfig(kind, value).label;
 }
 
+export function isTerminalBookingStatus(status: string | null | undefined): boolean {
+  return status === "CancelledByUser" || status === "CancelledByOwner" || status === "Expired" || status === "NoShow";
+}
+
 export function getStatusColor(kind: StatusKind, value: string | null | undefined): StatusColor {
   return getStatusConfig(kind, value).color;
 }

@@ -14,7 +14,6 @@ import Plus from "@gravity-ui/icons/Plus";
 import Pencil from "@gravity-ui/icons/Pencil";
 import TrashBin from "@gravity-ui/icons/TrashBin";
 import Star from "@gravity-ui/icons/Star";
-import { useAuth } from "@/lib/auth-context";
 import {
   getMySports,
   addMySport,
@@ -29,7 +28,6 @@ import type {
 import { SKILL_LEVEL_OPTIONS, SKILL_LEVEL_BE_TO_LABEL } from "@/lib/types/profile";
 
 export function PlayerSportsPanel() {
-  const { user } = useAuth();
   const [sports, setSports] = useState<PlayerSportResponseDto[]>([]);
   const [options, setOptions] = useState<SportOption[]>([]);
   const [loading, setLoading] = useState(true);

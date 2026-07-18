@@ -1,131 +1,49 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import {
-  Card,
-  CardContent,
-  Button,
-  Spinner,
-  Chip,
-} from "@heroui/react";
-
-import Plus from "@gravity-ui/icons/Plus";
+import { Alert, AlertDialog, Avatar, Button, Card, CardContent, Dropdown, Skeleton, Table } from "@heroui/react";
+import MapPin from "@gravity-ui/icons/MapPin";
+import Ellipsis from "@gravity-ui/icons/Ellipsis";
 import Eye from "@gravity-ui/icons/Eye";
 import Pencil from "@gravity-ui/icons/Pencil";
-import House from "@gravity-ui/icons/House";
-
+import Plus from "@gravity-ui/icons/Plus";
+import TrashBin from "@gravity-ui/icons/TrashBin";
 import { OwnerGuard } from "@/lib/auth/guards";
 import { OwnerShell } from "@/components/owner/owner-shell";
-import { getMyVenues } from "@/lib/api/owner";
+import { OwnerButtonLink, OwnerEmptyState, OwnerPageHeader, OwnerStatusChip } from "@/components/owner/owner-ui";
+import { deleteVenue, getMyVenues } from "@/lib/api/owner";
 import type { VenueResponseDto } from "@/lib/types/api";
 import { formatDate } from "@/lib/utils/format";
-import { getStatusConfig } from "@/lib/utils/status-labels";
 
-export default function OwnerVenuesPage() {
-  return (
-    <OwnerGuard>
-      <OwnerShell activeItem="venues">
-        <VenuesContent />
-      </OwnerShell>
-    </OwnerGuard>
-  );
-}
+export default function OwnerVenuesPage() { return <OwnerGuard><OwnerShell activeItem="venues"><VenuesContent /></OwnerShell></OwnerGuard>; }
 
 function VenuesContent() {
   const [venues, setVenues] = useState<VenueResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
+  const [venueToDelete, setVenueToDelete] = useState<VenueResponseDto | null>(null);
 
-  useEffect(() => {
-    getMyVenues()
-      .then(setVenues)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Lỗi"))
-      .finally(() => setLoading(false));
-  }, []);
+  async function load() { setLoading(true); setError(null); try { setVenues(await getMyVenues()); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể tải danh sách cơ sở."); } finally { setLoading(false); } }
+  useEffect(() => { void load(); }, []);
+  async function remove(venueId: number) { setDeleting(venueId); try { await deleteVenue(venueId); setVenues((items) => items.filter((venue) => venue.id !== venueId)); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể xóa cơ sở."); } finally { setDeleting(null); } }
 
-  if (loading) {
-    return <div className="flex h-64 items-center justify-center"><Spinner size="lg" /></div>;
-  }
-
-  if (error) {
-    return <div className="flex h-64 items-center justify-center"><p className="text-[var(--danger)]">{error}</p></div>;
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap justify-between items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Cơ sở của tôi</h1>
-          <p className="text-sm text-[var(--muted)] mt-1">{venues.length} cơ sở</p>
-        </div>
-        <Link href="/owner/venues/new">
-          <Button variant="primary">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Tạo cơ sở mới
-          </Button>
-        </Link>
-      </div>
-
-      {venues.length === 0 ? (
-        <Card className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-          <CardContent className="p-12 flex flex-col items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-[var(--surface-secondary)] flex items-center justify-center">
-              <House className="w-8 h-8 text-[var(--muted)]" />
-            </div>
-            <div className="text-center">
-              <p className="text-base font-semibold">Chưa có cơ sở nào</p>
-              <p className="text-sm text-[var(--muted)] mt-1">Tạo cơ sở đầu tiên để bắt đầu quản lý sân bãi</p>
-            </div>
-            <Link href="/owner/venues/new">
-              <Button variant="primary">
-                <Plus className="w-4 h-4 mr-1.5" />
-                Tạo cơ sở mới
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {venues.map((v) => {
-            const cfg = getStatusConfig("venue", v.status);
-            const cover = v.images?.find((i) => i.isCover) ?? v.images?.[0];
-            return (
-              <Card key={v.id} className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm overflow-hidden">
-                {cover && (
-                  <div className="h-40 overflow-hidden">
-                    <img src={cover.imageUrl} alt={v.name} className="w-full h-full object-cover" />
-                  </div>
-                )}
-                <CardContent className="p-5 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold truncate">{v.name}</h3>
-                      <p className="text-xs text-[var(--muted)] mt-0.5 truncate">{v.address}</p>
-                    </div>
-                    <Chip size="sm" color={cfg.color} variant="soft" className="shrink-0">{cfg.label}</Chip>
-                  </div>
-                  <div className="text-xs text-[var(--muted)]">{v.courts?.length ?? 0} sân · Tạo {formatDate(v.createdAt)}</div>
-                  <div className="flex gap-2 pt-1">
-                    <Link href={`/owner/venues/${v.id}`} className="flex-1">
-                      <Button variant="ghost" size="sm" className="w-full">
-                        <Eye className="w-4 h-4 mr-1" />
-                        Chi tiết
-                      </Button>
-                    </Link>
-                    <Link href={`/owner/venues/${v.id}/edit`} className="flex-1">
-                      <Button variant="ghost" size="sm" className="w-full">
-                        <Pencil className="w-4 h-4 mr-1" />
-                        Sửa
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  return <div className="mx-auto max-w-[1440px] space-y-6">
+    <OwnerPageHeader title="Cơ sở của tôi" description={loading ? "Đang tải cơ sở..." : `${venues.length} cơ sở`} action={<OwnerButtonLink href="/owner/venues/new"><Plus className="mr-1.5 size-4" />Tạo cơ sở</OwnerButtonLink>} />
+    {error && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Không thể hoàn tất thao tác</Alert.Title><Alert.Description>{error}</Alert.Description><Button size="sm" variant="tertiary" onPress={() => void load()}>Thử lại</Button></Alert.Content></Alert>}
+    {loading ? <VenueSkeleton /> : venues.length === 0 ? <OwnerEmptyState title="Bạn chưa có cơ sở nào" description="Tạo cơ sở đầu tiên để thêm sân và nhận đặt chỗ." icon={MapPin} action={<OwnerButtonLink href="/owner/venues/new">Tạo cơ sở</OwnerButtonLink>} /> : <><div className="hidden md:block"><VenueTable venues={venues} deleting={deleting} onDeleteRequest={setVenueToDelete} /></div><div className="grid gap-3 md:hidden">{venues.map((venue) => <VenueCard key={venue.id} venue={venue} deleting={deleting === venue.id} onDeleteRequest={setVenueToDelete} />)}</div></>}
+    <AlertDialog.Backdrop isOpen={venueToDelete !== null} onOpenChange={(open) => { if (!open) setVenueToDelete(null); }}><AlertDialog.Container size="sm"><AlertDialog.Dialog><AlertDialog.Header><AlertDialog.Heading>Xóa cơ sở?</AlertDialog.Heading></AlertDialog.Header><AlertDialog.Body>{venueToDelete ? `“${venueToDelete.name}” sẽ bị xóa vĩnh viễn. Thao tác này không thể hoàn tác.` : "Thao tác này không thể hoàn tác."}</AlertDialog.Body><AlertDialog.Footer><Button slot="close" variant="tertiary">Hủy</Button><Button slot="close" variant="danger" onPress={() => { if (venueToDelete) void remove(venueToDelete.id).then(() => setVenueToDelete(null)); }} isPending={deleting !== null}>Xóa cơ sở</Button></AlertDialog.Footer></AlertDialog.Dialog></AlertDialog.Container></AlertDialog.Backdrop>
+  </div>;
 }
+
+function VenueTable({ venues, deleting, onDeleteRequest }: { venues: VenueResponseDto[]; deleting: number | null; onDeleteRequest: (venue: VenueResponseDto) => void }) {
+  return <Table><Table.ScrollContainer><Table.Content aria-label="Danh sách cơ sở"><Table.Header><Table.Column isRowHeader>Cơ sở</Table.Column><Table.Column>Trạng thái</Table.Column><Table.Column>Ngày tạo</Table.Column><Table.Column>Thao tác</Table.Column></Table.Header><Table.Body>{venues.map((venue) => <Table.Row id={venue.id} key={venue.id}><Table.Cell><VenueIdentity venue={venue} /></Table.Cell><Table.Cell><OwnerStatusChip kind="venue" status={venue.status} /></Table.Cell><Table.Cell>{formatDate(venue.createdAt)}</Table.Cell><Table.Cell><VenueActions venue={venue} disabled={deleting === venue.id} onDeleteRequest={onDeleteRequest} /></Table.Cell></Table.Row>)}</Table.Body></Table.Content></Table.ScrollContainer></Table>;
+}
+
+function VenueCard({ venue, deleting, onDeleteRequest }: { venue: VenueResponseDto; deleting: boolean; onDeleteRequest: (venue: VenueResponseDto) => void }) { return <Card className="border border-[var(--border)] bg-[var(--surface)]"><CardContent className="space-y-4 p-4"><div className="flex items-start gap-3"><VenueIdentity venue={venue} /><OwnerStatusChip kind="venue" status={venue.status} /></div><p className="text-xs text-[var(--muted)]">Tạo {formatDate(venue.createdAt)}</p><div className="flex items-center justify-between"><OwnerButtonLink href={`/owner/venues/${venue.id}`} size="sm" variant="tertiary">Xem chi tiết</OwnerButtonLink><VenueActions venue={venue} disabled={deleting} onDeleteRequest={onDeleteRequest} /></div></CardContent></Card>; }
+
+function VenueIdentity({ venue }: { venue: VenueResponseDto }) { const cover = venue.images.find((image) => image.isCover) ?? venue.images[0]; return <div className="flex min-w-0 items-center gap-3"><Avatar className="size-12 shrink-0 rounded-xl">{cover && <Avatar.Image src={cover.imageUrl} alt={`Ảnh ${venue.name}`} />}<Avatar.Fallback className="rounded-xl"><MapPin className="size-5 text-[var(--muted)]" /></Avatar.Fallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-semibold">{venue.name}</p><p className="truncate text-xs text-[var(--muted)]">{venue.address}</p></div></div>; }
+
+function VenueActions({ venue, disabled, onDeleteRequest }: { venue: VenueResponseDto; disabled: boolean; onDeleteRequest: (venue: VenueResponseDto) => void }) { return <Dropdown><Button isIconOnly size="sm" variant="tertiary" aria-label={`Thao tác với ${venue.name}`} isDisabled={disabled}><Ellipsis className="size-5" /></Button><Dropdown.Popover><Dropdown.Menu aria-label={`Thao tác với ${venue.name}`} onAction={(key) => { if (key === "delete") onDeleteRequest(venue); }}><Dropdown.Item id="view" textValue="Xem chi tiết" href={`/owner/venues/${venue.id}`}><Eye className="size-4" />Xem chi tiết</Dropdown.Item><Dropdown.Item id="edit" textValue="Chỉnh sửa" href={`/owner/venues/${venue.id}/edit`}><Pencil className="size-4" />Chỉnh sửa</Dropdown.Item><Dropdown.Item id="delete" textValue="Xóa cơ sở" variant="danger"><TrashBin className="size-4" />Xóa cơ sở</Dropdown.Item></Dropdown.Menu></Dropdown.Popover></Dropdown>; }
+
+function VenueSkeleton() { return <div className="space-y-3">{Array.from({ length: 5 }, (_, index) => <Skeleton className="h-16 rounded-xl" key={index} />)}</div>; }

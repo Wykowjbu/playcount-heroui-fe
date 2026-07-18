@@ -109,10 +109,11 @@ function PlayerBookingsContent() {
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <SiteHeader />
-      <main className="mx-auto max-w-4xl px-4 pt-6 pb-24 sm:px-6 lg:px-8">
-        <h1 className="mb-6 text-2xl font-bold text-[var(--foreground)]">
-          Lịch đặt sân
-        </h1>
+      <main className="mx-auto max-w-5xl px-4 pt-8 pb-24 sm:px-6 lg:px-8">
+        <header className="mb-6">
+          <h1 className="text-3xl font-bold text-[var(--foreground)]">Lịch đặt sân</h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">Theo dõi trạng thái và thanh toán cho từng lượt đặt sân.</p>
+        </header>
 
         <Tabs
           className="w-full"
@@ -190,62 +191,28 @@ function BookingCard({
 
   return (
     <Card>
-      <Card.Content className="p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-semibold text-[var(--foreground)] truncate">
-                {b.venueName}
-              </h3>
-              <Chip color={statusCfg.color} size="sm">{statusCfg.label}</Chip>
-            </div>
-            <p className="text-sm text-[var(--muted)]">
-              <MapPin className="inline size-3.5 mr-1" />
-              {b.courtName}
-            </p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--muted)]">
-              <span>
-                <Calendar className="inline size-3.5 mr-1" />
-                {formatDate(b.startAt)}
-              </span>
-              <span>
-                <Clock className="inline size-3.5 mr-1" />
-                {fmtTime(b.startAt)} - {fmtTime(b.endAt)}
-              </span>
-              <span>
-                <Wallet className="inline size-3.5 mr-1" />
-                {formatVnd(b.totalPrice)}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex gap-2 shrink-0">
-            <Link href={`/bookings/${b.id}`}>
-              <Button variant="ghost" size="sm">Chi tiết</Button>
-            </Link>
-            {canPay && (
-              <Button
-                variant="primary"
-                size="sm"
-                isDisabled={actionLoading}
-                onPress={() => onPay(b.id)}
-              >
-                {actionLoading ? "Đang xử lý..." : "Thanh toán"}
-              </Button>
-            )}
-            {canCancel && (
-              <Button
-                variant="danger"
-                size="sm"
-                isDisabled={actionLoading}
-                onPress={() => onCancel(b.id)}
-              >
-                {actionLoading ? "Đang hủy..." : "Hủy"}
-              </Button>
-            )}
-          </div>
+      <Card.Header className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 sm:px-5 sm:pt-5">
+        <div className="min-w-0">
+          <Card.Title className="truncate">{b.venueName}</Card.Title>
+          <Card.Description>{b.courtName}</Card.Description>
+        </div>
+        <Chip color={statusCfg.color} size="sm">{statusCfg.label}</Chip>
+      </Card.Header>
+      <Card.Content className="px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--muted)]">
+          <span><Calendar className="mr-1 inline size-3.5" />{formatDate(b.startAt)}</span>
+          <span><Clock className="mr-1 inline size-3.5" />{fmtTime(b.startAt)} – {fmtTime(b.endAt)}</span>
+          <span><MapPin className="mr-1 inline size-3.5" />Mã đặt #{b.id}</span>
         </div>
       </Card.Content>
+      <Card.Footer className="flex flex-col gap-3 px-4 pb-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:pb-5">
+        <span className="font-semibold text-[var(--foreground)]"><Wallet className="mr-1 inline size-4" />{formatVnd(b.totalPrice)}</span>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <Link href={`/bookings/${b.id}`}><Button variant="secondary" size="sm">Xem chi tiết</Button></Link>
+          {canPay && <Button variant="primary" size="sm" isPending={actionLoading} onPress={() => onPay(b.id)}>Thanh toán</Button>}
+          {canCancel && <Button variant="danger" size="sm" isPending={actionLoading} onPress={() => onCancel(b.id)}>Hủy đặt sân</Button>}
+        </div>
+      </Card.Footer>
     </Card>
   );
 }
