@@ -3,6 +3,8 @@
 /* Server routes protect R2 credentials                                */
 /* ------------------------------------------------------------------ */
 
+import { toast } from "@heroui/react";
+
 export type UploadFolder = "avatars" | "venues" | "reviews";
 
 export interface UploadResult {
@@ -20,20 +22,23 @@ export async function uploadFile(
   file: File,
   folder: UploadFolder = "avatars",
 ): Promise<UploadResult> {
-  const formData = new FormData();
-  formData.append("file", file);
+  const request = (async () => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`/api/upload?folder=${folder}`, { method: "POST", body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Upload failed" }));
+      throw new Error(err.error || "Upload failed");
+    }
+    return res.json() as Promise<UploadResult>;
+  })();
 
-  const res = await fetch(`/api/upload?folder=${folder}`, {
-    method: "POST",
-    body: formData,
+  toast.promise(request, {
+    loading: "Đang tải ảnh lên…",
+    success: "Đã tải ảnh lên",
+    error: (error) => error.message || "Không thể tải ảnh lên",
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Upload failed" }));
-    throw new Error(err.error || "Upload failed");
-  }
-
-  return res.json();
+  return request;
 }
 
 /**

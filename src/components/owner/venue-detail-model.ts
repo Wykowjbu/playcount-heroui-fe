@@ -10,9 +10,8 @@ export interface VenueOpeningHour {
   isClosed: boolean;
 }
 
-const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 7];
 const WEEKDAY_LABELS: Record<number, string> = {
-  0: "Chủ nhật",
   1: "Thứ 2",
   2: "Thứ 3",
   3: "Thứ 4",

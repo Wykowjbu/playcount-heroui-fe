@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
+import { toast } from "@heroui/react";
 import type {
   UserProfileResponseDto,
   UpdateUserProfileRequestDto,
@@ -79,19 +80,22 @@ export async function getSportsOptions(): Promise<SportDto[]> {
  * Returns the public URL of the uploaded image.
  */
 export async function uploadAvatarImage(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.append("file", file);
+  const request = (async () => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch("/api/upload/avatar", { method: "POST", body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Upload failed" }));
+      throw new Error(err.error || "Upload failed");
+    }
+    const data = await res.json();
+    return data.url as string;
+  })();
 
-  const res = await fetch("/api/upload/avatar", {
-    method: "POST",
-    body: formData,
+  toast.promise(request, {
+    loading: "Đang tải ảnh đại diện lên…",
+    success: "Đã tải ảnh đại diện lên",
+    error: (error) => error.message || "Không thể tải ảnh đại diện lên",
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Upload failed" }));
-    throw new Error(err.error || "Upload failed");
-  }
-
-  const data = await res.json();
-  return data.url;
+  return request;
 }

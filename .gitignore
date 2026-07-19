@@ -50,3 +50,9 @@ ux-ui-agent-learning-sources.md
 .mcp.json
 .claude/
 .agents/
+.codex/
+
+# local test and debugging artifacts
+/scratch/
+/test-results/
+/tests/player-flow.spec.ts

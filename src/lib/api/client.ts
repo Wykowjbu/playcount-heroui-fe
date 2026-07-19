@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "@heroui/react";
+
 /* ------------------------------------------------------------------ */
 /* API CLIENT — centralized fetch with auth, refresh, error handling   */
 /* ------------------------------------------------------------------ */
@@ -105,9 +107,29 @@ export function normalizeErrorMessage(body: ApiResponse): string {
 /* ---- Core fetch ---- */
 export async function apiFetch<T>(
   path: string,
-  options: RequestInit & { skipAuth?: boolean } = {},
+  options: RequestInit & { skipAuth?: boolean; notify?: boolean } = {},
+): Promise<ApiResponse<T>> {
+  const request = executeApiFetch<T>(path, options);
+  const method = (options.method ?? "GET").toUpperCase();
+
+  if (options.notify !== false && method !== "GET" && method !== "HEAD" && typeof window !== "undefined") {
+    const deleting = method === "DELETE";
+    toast.promise(request, {
+      loading: deleting ? "Đang xóa…" : "Đang lưu thay đổi…",
+      success: deleting ? "Đã xóa" : "Đã lưu thay đổi",
+      error: (error) => error.message || "Không thể hoàn tất thao tác",
+    });
+  }
+
+  return request;
+}
+
+async function executeApiFetch<T>(
+  path: string,
+  options: RequestInit & { skipAuth?: boolean; notify?: boolean },
 ): Promise<ApiResponse<T>> {
   const { skipAuth, ...fetchOpts } = options;
+  delete fetchOpts.notify;
   const url = `${API_PREFIX}${path}`;
 
   const headers: Record<string, string> = {

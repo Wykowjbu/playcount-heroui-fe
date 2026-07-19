@@ -18,11 +18,11 @@ test("court management deep links only accept known tabs", () => {
 
 test("opening hours are always ordered Monday through Sunday", () => {
   const hours = normalizeOpeningHours([
-    { dayOfWeek: 0, openTime: "08:00:00", closeTime: "20:00:00", isClosed: false },
+    { dayOfWeek: 7, openTime: "08:00:00", closeTime: "20:00:00", isClosed: false },
     { dayOfWeek: 1, openTime: "06:00:00", closeTime: "22:00:00", isClosed: false },
   ]);
 
-  assert.deepEqual(hours.map((hour) => hour.dayOfWeek), [1, 2, 3, 4, 5, 6, 0]);
+  assert.deepEqual(hours.map((hour) => hour.dayOfWeek), [1, 2, 3, 4, 5, 6, 7]);
   assert.equal(hours[6].openTime, "08:00:00");
   assert.equal(hours[1].isClosed, true);
 });
@@ -40,7 +40,6 @@ test("opening hours reject an end time that is not after the start time", () => 
 test("weekday labels map backend day numbers to Vietnamese names", () => {
   assert.equal(formatWeekday(1), "Thứ 2");
   assert.equal(formatWeekday(6), "Thứ 7");
-  assert.equal(formatWeekday(0), "Chủ nhật");
   assert.equal(formatWeekday(7), "Chủ nhật");
 });
 
