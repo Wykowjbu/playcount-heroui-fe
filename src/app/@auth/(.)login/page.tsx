@@ -76,7 +76,7 @@ export default function AuthModalPage() {
                 </Tabs.ListContainer>
 
                 <Tabs.Panel className="pt-4" id="login">
-                  <QuickLoginForm onSuccess={handleClose} />
+                  <QuickLoginForm />
                 </Tabs.Panel>
 
                 <Tabs.Panel className="pt-4" id="register">
@@ -112,7 +112,7 @@ export default function AuthModalPage() {
 
 /* ───── Quick Login Form ───── */
 
-function QuickLoginForm({ onSuccess }: { onSuccess: () => void }) {
+function QuickLoginForm() {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -125,7 +125,6 @@ function QuickLoginForm({ onSuccess }: { onSuccess: () => void }) {
         identifier: data.email as string,
         password: data.password as string,
       });
-      onSuccess();
     } catch {
       // apiFetch displays the backend message in a toast.
     } finally {
