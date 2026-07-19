@@ -61,7 +61,7 @@ export function ProfileSummaryCard({ profile, onProfileUpdate, role }: Props) {
     setUploadError("");
     try {
       const url = await uploadAvatarImage(file);
-      const updated = await updateMyProfile({ avatarUrl: url });
+      const updated = await updateMyProfile({ avatarUrl: url, fullName: profile.fullName });
       onProfileUpdate(updated);
     } catch (cause) {
       setUploadError(cause instanceof Error ? cause.message : "Không thể cập nhật ảnh đại diện.");

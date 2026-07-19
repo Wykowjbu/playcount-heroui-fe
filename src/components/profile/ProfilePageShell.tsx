@@ -72,7 +72,7 @@ export function ProfilePageShell({ role }: Props) {
       ];
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
       {/* Left: Summary Card - 320px on desktop */}
       <div className="w-full lg:w-[320px] shrink-0">
         <ProfileSummaryCard profile={profile} onProfileUpdate={setProfile} role={role} />
