@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node's built-in TypeScript runner requires explicit extensions.
-import { appendBookingPage, getBookableDurations, sortVenuesByDistance, toLocalIsoAtWallTime, toLocalIsoWithOffset } from "./player-flow.ts";
+import { appendBookingPage, getBookableDurations, getScheduleSlotIndexes, sortVenuesByDistance, toLocalIsoAtWallTime, toLocalIsoWithOffset } from "./player-flow.ts";
 
 test("local booking timestamps preserve wall time and format the UTC offset", () => {
   assert.equal(toLocalIsoWithOffset("2026-07-19", "08:00", 420), "2026-07-19T08:00:00+07:00");
@@ -34,6 +34,17 @@ test("bookable durations stop at timestamp gaps and malformed slot lengths", () 
 
   assert.deepEqual(getBookableDurations(slots, 0), []);
   assert.deepEqual(getBookableDurations([{ ...slots[0], endAt: "2026-07-19T08:45:00Z" }], 0), []);
+});
+
+test("schedule timeline only includes slots inside venue opening hours", () => {
+  const slots = [
+    { startAt: "2026-07-19T05:30:00+07:00", endAt: "2026-07-19T06:00:00+07:00", status: "Closed" as const },
+    { startAt: "2026-07-19T06:00:00+07:00", endAt: "2026-07-19T06:30:00+07:00", status: "Available" as const },
+    { startAt: "2026-07-19T06:30:00+07:00", endAt: "2026-07-19T07:00:00+07:00", status: "Booked" as const },
+    { startAt: "2026-07-19T07:00:00+07:00", endAt: "2026-07-19T07:30:00+07:00", status: "Closed" as const },
+  ];
+
+  assert.deepEqual(getScheduleSlotIndexes(slots, "06:00:00", "07:00:00"), [1, 2]);
 });
 
 test("local wall timestamps use the selected date offset and reject DST gaps", () => {

@@ -34,6 +34,22 @@ export function getBookableDurations(slots: VenueAvailabilitySlotDto[], startInd
   return durations.filter((duration) => duration >= 60);
 }
 
+export function getScheduleSlotIndexes(
+  slots: Pick<VenueAvailabilitySlotDto, "startAt" | "endAt" | "status">[],
+  openTime?: string | null,
+  closeTime?: string | null,
+): number[] {
+  const open = openTime?.slice(0, 5);
+  const close = closeTime?.slice(0, 5);
+  return slots.flatMap((slot, index) =>
+    slot.status !== "Closed"
+      && (!open || slot.startAt.slice(11, 16) >= open)
+      && (!close || slot.endAt.slice(11, 16) <= close)
+      ? [index]
+      : [],
+  );
+}
+
 export function toLocalIsoAtWallTime(date: string, time: string): string {
   toLocalIsoWithOffset(date, time, 0);
   const [year, month, day] = date.split("-").map(Number);

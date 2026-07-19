@@ -7,7 +7,7 @@ import { getVenueAvailability, searchVenues } from "@/lib/api/discovery";
 import type { VenueAvailabilityCourtDto, VenueAvailabilityResponseDto } from "@/lib/types/api";
 import type { DiscoveryVenue } from "@/lib/types/discovery";
 import { loadMapbox, type MapInstance, type MarkerInstance } from "@/lib/mapbox";
-import { getBookableDurations } from "@/lib/utils/player-flow";
+import { getBookableDurations, getScheduleSlotIndexes } from "@/lib/utils/player-flow";
 
 interface Props {
   sportId: number | null;
@@ -59,10 +59,8 @@ export function VenueMapPicker({ sportId, className, onSelect }: Props) {
   const visibleCourts = useMemo(() => availability?.courts.filter((court) => sportId == null || court.sportId === sportId) ?? [], [availability, sportId]);
   const scheduleSlots = useMemo(() => {
     const slots = availability?.courts[0]?.slots ?? [];
-    const open = availability?.venue.openTime?.slice(0, 5);
-    const close = availability?.venue.closeTime?.slice(0, 5);
-    return slots.map((slot, index) => ({ slot, index })).filter(({ slot }) =>
-      slot.status !== "Closed" && (!open || slot.startAt.slice(11, 16) >= open) && (!close || slot.endAt.slice(11, 16) <= close));
+    return getScheduleSlotIndexes(slots, availability?.venue.openTime, availability?.venue.closeTime)
+      .map((index) => ({ slot: slots[index], index }));
   }, [availability]);
   const durations = useMemo(() => selectedCourt && selectedStartIndex != null ? getBookableDurations(selectedCourt.slots, selectedStartIndex) : [], [selectedCourt, selectedStartIndex]);
   const selectedPrice = useMemo(() => {
