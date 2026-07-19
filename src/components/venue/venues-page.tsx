@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Alert, Pagination, Drawer } from "@heroui/react";
+import { Button, Alert, Pagination, Drawer, Tabs } from "@heroui/react";
 import Sliders from "@gravity-ui/icons/Sliders";
+import ListUl from "@gravity-ui/icons/ListUl";
+import MapPin from "@gravity-ui/icons/MapPin";
 import { SiteHeader } from "@/components/layout/site-header";
 import { PlayerBottomNav } from "@/components/layout/player-bottom-nav";
 import { VenueCard } from "./venue-card";
 import { VenueLoadingSkeleton } from "./venue-loading-skeleton";
 import { VenueEmptyState } from "./venue-empty-state";
 import { VenueFilterForm } from "./venue-filter-form";
+import { VenueResultsMap } from "./venue-results-map";
 import type { FilterValues } from "./venue-filter-form";
 import { searchVenues, getAllSports } from "@/lib/api/discovery";
 import type { VenueSearchParams } from "@/lib/api/discovery";
@@ -73,9 +76,20 @@ export function VenuesPage() {
   const [result, setResult] = useState<VenueSearchResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(false);
+  const requestGenerationRef = useRef(0);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestGenerationRef.current += 1;
+    };
+  }, []);
 
   // UI state
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [view, setView] = useState<"list" | "map">("list");
 
   // Load sports once
   useEffect(() => {
@@ -90,6 +104,7 @@ export function VenuesPage() {
 
   // Fetch venues when URL params change
   const fetchVenues = useCallback(async () => {
+    const generation = ++requestGenerationRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -101,13 +116,13 @@ export function VenuesPage() {
         pageSize: parsed.pageSize,
       };
       const data = await searchVenues(params);
-      setResult(data);
+      if (mountedRef.current && generation === requestGenerationRef.current) setResult(data);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Không thể tải danh sách sân",
-      );
+      if (mountedRef.current && generation === requestGenerationRef.current) {
+        setError(err instanceof Error ? err.message : "Không thể tải danh sách sân");
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current && generation === requestGenerationRef.current) setLoading(false);
     }
   }, [parsed.keyword, parsed.sportId, parsed.isOpenNow, parsed.pageIndex, parsed.pageSize]);
 
@@ -312,46 +327,40 @@ export function VenuesPage() {
                 {/* Results Grid */}
                 {!loading && !error && result && result.items.length > 0 && (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {result.items.map((venue: DiscoveryVenue) => (
-                        <VenueCard key={venue.id} venue={venue} />
-                      ))}
-                    </div>
-
-                    {/* Pagination */}
+                    <Tabs selectedKey={view} onSelectionChange={(key) => setView(String(key) as "list" | "map")}>
+                      <Tabs.ListContainer className="mb-4">
+                        <Tabs.List aria-label="Kiểu hiển thị sân" className="*:min-h-11">
+                          <Tabs.Tab id="list"><ListUl className="size-4" />Danh sách<Tabs.Indicator /></Tabs.Tab>
+                          <Tabs.Tab id="map"><MapPin className="size-4" />Bản đồ<Tabs.Indicator /></Tabs.Tab>
+                        </Tabs.List>
+                      </Tabs.ListContainer>
+                      <Tabs.Panel id="list">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {result.items.map((venue: DiscoveryVenue) => (
+                            <VenueCard key={venue.id} venue={venue} />
+                          ))}
+                        </div>
+                      </Tabs.Panel>
+                      <Tabs.Panel id="map">
+                        <VenueResultsMap venues={result.items} onShowList={() => setView("list")} />
+                      </Tabs.Panel>
+                    </Tabs>
                     {result.totalPages > 1 && (
                       <nav className="flex justify-center mt-10" aria-label="Phân trang">
                         <Pagination className="justify-center">
                           <Pagination.Content>
                             <Pagination.Item>
-                              <Pagination.Previous
-                                isDisabled={parsed.pageIndex <= 1}
-                                onPress={() => handlePageChange(parsed.pageIndex - 1)}
-                              >
+                              <Pagination.Previous isDisabled={parsed.pageIndex <= 1} onPress={() => handlePageChange(parsed.pageIndex - 1)}>
                                 <Pagination.PreviousIcon />
                               </Pagination.Previous>
                             </Pagination.Item>
                             {getPageNumbers(parsed.pageIndex, result.totalPages).map((p, i) =>
-                              p === "ellipsis" ? (
-                                <Pagination.Item key={`e-${i}`}>
-                                  <Pagination.Ellipsis />
-                                </Pagination.Item>
-                              ) : (
-                                <Pagination.Item key={p}>
-                                  <Pagination.Link
-                                    isActive={p === parsed.pageIndex}
-                                    onPress={() => handlePageChange(p as number)}
-                                  >
-                                    {p}
-                                  </Pagination.Link>
-                                </Pagination.Item>
+                              p === "ellipsis" ? <Pagination.Item key={`e-${i}`}><Pagination.Ellipsis /></Pagination.Item> : (
+                                <Pagination.Item key={p}><Pagination.Link isActive={p === parsed.pageIndex} onPress={() => handlePageChange(p as number)}>{p}</Pagination.Link></Pagination.Item>
                               ),
                             )}
                             <Pagination.Item>
-                              <Pagination.Next
-                                isDisabled={parsed.pageIndex >= result.totalPages}
-                                onPress={() => handlePageChange(parsed.pageIndex + 1)}
-                              >
+                              <Pagination.Next isDisabled={parsed.pageIndex >= result.totalPages} onPress={() => handlePageChange(parsed.pageIndex + 1)}>
                                 <Pagination.NextIcon />
                               </Pagination.Next>
                             </Pagination.Item>

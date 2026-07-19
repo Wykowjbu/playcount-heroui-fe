@@ -10,6 +10,7 @@ import {
   Drawer,
   cn,
 } from "@heroui/react";
+import { buttonVariants } from "@heroui/styles/components/button";
 import ArrowRightFromSquare from "@gravity-ui/icons/ArrowRightFromSquare";
 import ArrowRightToSquare from "@gravity-ui/icons/ArrowRightToSquare";
 import Bars from "@gravity-ui/icons/Bars";
@@ -58,7 +59,8 @@ const ADMIN_NAV: NavItem[] = [
 ];
 
 function isActive(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/";
+  if (href === "/" || href === "/admin") return pathname === href;
+  if (href === "/matches" && pathname === "/player/matches") return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -148,7 +150,7 @@ export function SiteHeader() {
           {/* ---- Logo ---- */}
           <Link
             href="/"
-            className="flex items-center gap-2 shrink-0 group"
+            className="flex min-h-11 min-w-11 items-center gap-2 shrink-0 group"
           >
             <span
               className={cn(
@@ -170,8 +172,9 @@ export function SiteHeader() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActive(pathname, item.href) ? "page" : undefined}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-sm font-medium transition-colors",
+                  "flex min-h-11 items-center px-3 rounded-xl text-sm font-medium transition-colors",
                   isActive(pathname, item.href)
                     ? "bg-surface-secondary text-foreground"
                     : "text-muted hover:text-foreground",
@@ -233,16 +236,8 @@ export function SiteHeader() {
             {/* Guest: CTA desktop */}
             {!isLoggedIn && (
               <div className="hidden md:flex items-center gap-2">
-                <Link href="/login">
-                  <Button variant="ghost" size="sm">
-                    Đăng nhập
-                  </Button>
-                </Link>
-                <Link href="/register/owner">
-                  <Button variant="primary" size="sm">
-                    Đăng ký
-                  </Button>
-                </Link>
+                <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>Đăng nhập</Link>
+                <Link href="/register/owner" className={buttonVariants({ variant: "primary", size: "sm" })}>Đăng ký</Link>
               </div>
             )}
 
@@ -299,6 +294,7 @@ export function SiteHeader() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={isActive(pathname, item.href) ? "page" : undefined}
                     onClick={() => setDrawerOpen(false)}
                     className={cn(
                       "flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Card, Button, Chip } from "@heroui/react";
+import { Card, Chip } from "@heroui/react";
+import { buttonVariants } from "@heroui/styles/components/button";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Clock from "@gravity-ui/icons/Clock";
 import Check from "@gravity-ui/icons/Check";
@@ -92,15 +93,11 @@ export function VenueCard({ venue }: { venue: DiscoveryVenue }) {
 
           {/* Actions */}
           <div className="flex gap-2 mt-auto pt-3">
-            <Link href={`/venues/${venue.id}`} className="flex-1">
-              <Button variant="outline" size="sm" className="w-full">
-                Xem sân
-              </Button>
+            <Link href={`/venues/${venue.id}`} className={buttonVariants({ variant: "outline", size: "sm", className: "min-h-11 flex-1" })}>
+              Xem sân
             </Link>
-            <Link href={`/venues/${venue.id}`} className="flex-1">
-              <Button variant="primary" size="sm" className="w-full">
-                Đặt sân
-              </Button>
+            <Link href={`/venues/${venue.id}`} className={buttonVariants({ variant: "primary", size: "sm", className: "min-h-11 flex-1" })}>
+              Đặt sân
             </Link>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Button, Card } from "@heroui/react";
+import { Card } from "@heroui/react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AuthGuard } from "@/lib/auth/guards";
 import CircleExclamation from "@gravity-ui/icons/CircleExclamation";
@@ -30,33 +30,34 @@ function PaymentCancelContent() {
               <CircleExclamation className="size-8 text-[var(--warning)]" />
             </div>
             <h1 className="text-xl font-bold text-[var(--foreground)]">
-              Thanh toán đã bị hủy
+              {bookingId ? "Thanh toán đã bị hủy" : "Không thể xác định đặt sân"}
             </h1>
             <p className="text-[var(--muted)]">
-              Bạn đã hủy quá trình thanh toán. Đặt sân vẫn được giữ nếu chưa hết hạn.
+              {bookingId
+                ? "Giao dịch chưa hoàn tất. Đặt sân chỉ được giữ nếu thời gian thanh toán chưa hết hạn."
+                : "Liên kết hủy thanh toán thiếu mã đặt sân hợp lệ. Hãy mở danh sách đặt sân để kiểm tra trạng thái."}
             </p>
             <div className="flex flex-col gap-3 pt-2">
               {bookingId && (
-                <Link href={`/bookings/${bookingId}`}>
-                  <Button variant="primary" className="w-full">
-                    Quay lại đặt sân
-                  </Button>
-                </Link>
+                <RecoveryLink href={`/bookings/${bookingId}`}>Xem chi tiết đặt sân</RecoveryLink>
               )}
-              <Link href="/player/bookings">
-                <Button variant="ghost" className="w-full">
-                  Về danh sách đặt sân
-                </Button>
-              </Link>
-              <Link href="/venues">
-                <Button variant="ghost" className="w-full">
-                  Tìm sân khác
-                </Button>
-              </Link>
+              <RecoveryLink href="/player/bookings" secondary>Về danh sách đặt sân</RecoveryLink>
+              <RecoveryLink href="/venues" secondary>Tìm sân khác</RecoveryLink>
             </div>
           </Card.Content>
         </Card>
       </main>
     </div>
+  );
+}
+
+function RecoveryLink({ href, secondary = false, children }: { href: string; secondary?: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className={`inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold ${secondary ? "bg-[var(--surface-secondary)] text-foreground" : "bg-[var(--accent)] text-[var(--accent-foreground)]"}`}
+    >
+      {children}
+    </Link>
   );
 }

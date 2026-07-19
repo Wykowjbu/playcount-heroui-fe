@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, Link, Skeleton, Card } from "@heroui/react";
+import { buttonVariants } from "@heroui/styles/components/button";
 import { ChevronRight, Magnifier } from "@gravity-ui/icons";
 import { VenueCard } from "./venue-card";
 import type { DiscoveryVenue } from "@/lib/types/discovery";
@@ -43,10 +44,8 @@ export function RecommendedVenuesSection({ venues, subtitle, isLoading, onChange
                 Đổi vị trí
               </Button>
             )}
-            <Link href="/venues">
-              <Button variant="outline" size="sm">
-                Xem hết <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
+            <Link href="/venues" className={buttonVariants({ variant: "outline", size: "sm", className: "min-h-11" })}>
+              Xem hết <ChevronRight className="w-4 h-4 ml-1" />
             </Link>
           </div>
         </div>

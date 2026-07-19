@@ -1,5 +1,13 @@
-export function getNotificationHref(referenceType: string | null, referenceId: number | null) {
-  if (!referenceType || !referenceId) return null;
+export function getNotificationHref(role: string | null, referenceType: string | null, referenceId: number | null) {
+  if (!role || !referenceType || !Number.isInteger(referenceId) || referenceId! <= 0) return null;
+
+  if (role === "owner") {
+    if (referenceType.toLowerCase() === "booking") return `/owner/bookings?bookingId=${referenceId}`;
+    if (referenceType.toLowerCase() === "venue") return `/owner/venues/${referenceId}`;
+    return null;
+  }
+
+  if (role !== "player") return null;
 
   switch (referenceType.toLowerCase()) {
     case "booking":
@@ -8,6 +16,11 @@ export function getNotificationHref(referenceType: string | null, referenceId: n
       return `/matches/${referenceId}`;
     case "venue":
       return `/venues/${referenceId}`;
+    case "payment":
+      return "/player/bookings";
+    case "review":
+    case "system":
+      return null;
     default:
       return null;
   }
@@ -15,8 +28,8 @@ export function getNotificationHref(referenceType: string | null, referenceId: n
 
 export function getPaymentBookingId(searchParams: Pick<URLSearchParams, "get">) {
   const value = searchParams.get("bookingId");
-  if (!value) return null;
+  if (!value || !/^[1-9]\d*$/.test(value)) return null;
 
   const bookingId = Number(value);
-  return Number.isInteger(bookingId) && bookingId > 0 ? bookingId : null;
+  return Number.isSafeInteger(bookingId) ? bookingId : null;
 }

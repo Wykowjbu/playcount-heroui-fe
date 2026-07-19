@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Button, Modal } from "@heroui/react";
 import MapPin from "@gravity-ui/icons/MapPin";
 import CircleInfo from "@gravity-ui/icons/CircleInfo";
@@ -8,34 +8,49 @@ import type { LocationState } from "@/lib/types/discovery";
 
 interface Props {
   isOpen: boolean;
-  onLocationResolved: (loc: LocationState) => void;
+  onLocationResolved: (loc: LocationState) => Promise<void>;
   onSkip: () => void;
 }
 
 export function LocationConsentCard({ isOpen, onLocationResolved, onSkip }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const attemptRef = useRef(0);
+
+  const dismiss = () => {
+    attemptRef.current += 1;
+    setLoading(false);
+    onSkip();
+  };
 
   const handleUseLocation = () => {
     if (!navigator.geolocation) {
-      setError("Trình duyệt không hỗ trợ định vị. Bạn có thể nhập thành phố thủ công.");
+      setError("Trình duyệt không hỗ trợ định vị. Bạn vẫn có thể xem các sân phổ biến.");
       return;
     }
     setLoading(true);
     setError(null);
+    const attempt = ++attemptRef.current;
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLoading(false);
-        onLocationResolved({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          source: "geolocation",
-        });
+      async (pos) => {
+        if (attempt !== attemptRef.current) return;
+        try {
+          await onLocationResolved({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            source: "geolocation",
+          });
+        } catch {
+          if (attempt === attemptRef.current) setError("Không thể tải gợi ý theo vị trí. Vui lòng thử lại.");
+        } finally {
+          if (attempt === attemptRef.current) setLoading(false);
+        }
       },
       (err) => {
+        if (attempt !== attemptRef.current) return;
         setLoading(false);
         if (err.code === err.PERMISSION_DENIED) {
-          setError("Không thể lấy vị trí. Bạn có thể nhập thành phố thủ công.");
+          setError("Trình duyệt đã từ chối quyền vị trí. Hãy cấp quyền rồi thử lại.");
         } else {
           setError("Không thể lấy vị trí. Vui lòng thử lại sau.");
         }
@@ -45,7 +60,7 @@ export function LocationConsentCard({ isOpen, onLocationResolved, onSkip }: Prop
   };
 
   return <Modal>
-    <Modal.Backdrop isOpen={isOpen} onOpenChange={(open) => { if (!open) onSkip(); }} variant="blur">
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={(open) => { if (!open) dismiss(); }} variant="blur">
       <Modal.Container size="sm" placement="center">
         <Modal.Dialog aria-label="Cho phép dùng vị trí hiện tại">
           <Modal.CloseTrigger />
@@ -64,7 +79,7 @@ export function LocationConsentCard({ isOpen, onLocationResolved, onSkip }: Prop
           </div>
         </div>
           </Modal.Body>
-          <Modal.Footer><Button slot="close" variant="tertiary">Không phải bây giờ</Button><Button variant="primary" onPress={handleUseLocation} isPending={loading}><MapPin className="mr-1 size-4" />Dùng vị trí hiện tại</Button></Modal.Footer>
+          <Modal.Footer><Button variant="tertiary" size="lg" className="min-h-11" onPress={dismiss}>Không phải bây giờ</Button><Button variant="primary" size="lg" className="min-h-11" onPress={handleUseLocation} isPending={loading}><MapPin className="mr-1 size-4" />{error ? "Thử lại vị trí" : "Dùng vị trí hiện tại"}</Button></Modal.Footer>
         </Modal.Dialog>
       </Modal.Container>
     </Modal.Backdrop>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, Chip, Button, Link } from "@heroui/react";
+import { buttonVariants } from "@heroui/styles/components/button";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Calendar from "@gravity-ui/icons/Calendar";
 import Clock from "@gravity-ui/icons/Clock";
@@ -57,12 +58,17 @@ export function MatchCard({ match }: { match: DiscoveryMatch }) {
         </div>
 
         <div className="mt-4">
-          <Link href={`/matches/${match.id}`}>
-            <Button variant={isFull ? "outline" : "primary"} size="sm" className="w-full" isDisabled={isFull}>
+          {isFull ? (
+            <Button variant="outline" size="sm" className="min-h-11 w-full" isDisabled>
               <PersonPlus className="w-4 h-4 mr-1" />
-              {isFull ? "Đã đầy" : "Tham gia"}
+              Đã đầy
             </Button>
-          </Link>
+          ) : (
+            <Link href={`/matches/${match.id}`} className={buttonVariants({ variant: "primary", size: "sm", className: "min-h-11 w-full" })}>
+              <PersonPlus className="w-4 h-4 mr-1" />
+              Tham gia
+            </Link>
+          )}
         </div>
       </Card.Content>
     </Card>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ComponentType, ReactNode } from "react";
-import { Card, CardContent, Chip, Link as HeroUILink } from "@heroui/react";
+import { Card, Chip, Link as HeroUILink } from "@heroui/react";
 import { buttonVariants } from "@heroui/styles/components/button";
 import { getOwnerStatusConfig, type OwnerStatusKind } from "./owner-status";
 
@@ -9,7 +9,7 @@ export function OwnerPageHeader({ title, description, action }: { title: string;
 }
 
 export function OwnerEmptyState({ title, description, action, icon: Icon }: { title: string; description: string; action?: ReactNode; icon?: ComponentType<{ className?: string }> }) {
-  return <Card className="!h-auto !min-h-0 border border-[var(--border)] bg-[var(--surface)]"><CardContent className="flex !min-h-0 flex-col items-start gap-3 p-5 sm:p-6">{Icon && <div className="rounded-xl bg-[var(--surface-secondary)] p-3"><Icon className="size-6 text-[var(--muted)]" /></div>}<div><p className="font-semibold">{title}</p><p className="mt-1 max-w-md text-sm text-[var(--muted)]">{description}</p></div>{action}</CardContent></Card>;
+  return <Card className="h-auto min-h-0 items-stretch gap-0 border border-[var(--border)] bg-[var(--surface)] p-0"><Card.Content className="min-h-0 items-start gap-3 p-5 sm:p-6">{Icon && <div className="rounded-xl bg-[var(--surface-secondary)] p-3"><Icon className="size-6 text-[var(--muted)]" /></div>}<div><p className="font-semibold">{title}</p><p className="mt-1 max-w-md text-sm text-[var(--muted)]">{description}</p></div>{action}</Card.Content></Card>;
 }
 
 export function OwnerStatusChip({ kind, status }: { kind: OwnerStatusKind; status: string | null | undefined }) {
@@ -18,7 +18,7 @@ export function OwnerStatusChip({ kind, status }: { kind: OwnerStatusKind; statu
 }
 
 export function OwnerMetricCard({ label, value, detail, icon: Icon, href }: { label: string; value: string | number; detail: string; icon: ComponentType<{ className?: string }>; href?: string }) {
-  const body = <Card className="!h-auto !min-h-0 border border-[var(--border)] bg-[var(--surface)] transition-shadow hover:shadow-sm"><CardContent className="flex !min-h-0 items-start gap-3 p-4"><div className="rounded-xl bg-[var(--surface-secondary)] p-2.5"><Icon className="size-5" /></div><div><p className="text-xs font-medium text-[var(--muted)]">{label}</p><p className="mt-1 text-3xl font-semibold leading-none">{value}</p><p className="mt-2 text-xs text-[var(--muted)]">{detail}</p></div></CardContent></Card>;
+  const body = <Card className="h-auto min-h-0 items-stretch gap-0 border border-[var(--border)] bg-[var(--surface)] p-0 transition-shadow hover:shadow-sm"><Card.Content className="min-h-0 flex-row items-start gap-3 p-4"><div className="shrink-0 rounded-xl bg-[var(--surface-secondary)] p-2.5"><Icon className="size-5" /></div><div className="min-w-0"><p className="text-xs font-medium text-[var(--muted)]">{label}</p><p className="mt-1 text-3xl font-semibold leading-none">{value}</p><p className="mt-2 text-xs text-[var(--muted)]">{detail}</p></div></Card.Content></Card>;
   return href ? <Link href={href} className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">{body}</Link> : body;
 }
 

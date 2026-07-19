@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "@/lib/auth-context";
-import { getMyProfile, getMySports, getSportsOptions } from "@/lib/api/profile";
+import { addMySport, getMyProfile, getMySports, getSportsOptions } from "@/lib/api/profile";
 import { searchVenues, getRecommendedMatches } from "@/lib/api/discovery";
+import { sortVenuesByDistance } from "@/lib/utils/player-flow";
 import {
   getRecommendationState,
   type LocationState,
@@ -24,7 +25,6 @@ interface Props {
 }
 
 export function PlayerDiscoveryView({ user }: Props) {
-  const [loading, setLoading] = useState(true);
   const [userSports, setUserSports] = useState<string[]>([]);
   const [location, setLocation] = useState<LocationState>({ source: null });
   const [showLocationCard, setShowLocationCard] = useState(false);
@@ -34,11 +34,11 @@ export function PlayerDiscoveryView({ user }: Props) {
   const [matches, setMatches] = useState<DiscoveryMatch[]>([]);
   const [venuesLoading, setVenuesLoading] = useState(true);
   const [matchesLoading, setMatchesLoading] = useState(true);
+  const venueRequestToken = useRef(0);
   const router = useRouter();
 
   // Load profile + sports on mount (useCallback avoids setState-in-effect lint error)
   const loadProfile = useCallback(async () => {
-    setLoading(true);
     try {
       const [profile, mySports, allSports] = await Promise.all([
         getMyProfile().catch(() => null),
@@ -57,18 +57,12 @@ export function PlayerDiscoveryView({ user }: Props) {
 
       // Determine recommendation state and show inline cards
       const recState = getRecommendationState(sportNames.length > 0, hasLocation);
-      if (recState === "B") setShowLocationCard(true);
-      if (recState === "C") setShowSportCard(true);
-      if (recState === "D") {
-        setShowLocationCard(true);
-        setShowSportCard(true);
-      }
+      setShowLocationCard(recState === "B" || recState === "D");
+      setShowSportCard(recState === "C" || recState === "D");
     } catch {
       // Profile fetch failed, continue with empty state
-    } finally {
-      setLoading(false);
     }
-  }, [user.accessToken]);
+  }, []);
 
   useEffect(() => {
     loadProfile();
@@ -77,16 +71,17 @@ export function PlayerDiscoveryView({ user }: Props) {
   // Load venues from real API
   useEffect(() => {
     let cancelled = false;
+    const token = ++venueRequestToken.current;
     setVenuesLoading(true);
-    searchVenues({ pageSize: 6 })
+    searchVenues({ pageIndex: 1, pageSize: 6 })
       .then((result) => {
-        if (!cancelled) setVenues(result.items);
+        if (!cancelled && token === venueRequestToken.current) setVenues(result.items);
       })
       .catch(() => {
-        if (!cancelled) setVenues([]);
+        if (!cancelled && token === venueRequestToken.current) setVenues([]);
       })
       .finally(() => {
-        if (!cancelled) setVenuesLoading(false);
+        if (!cancelled && token === venueRequestToken.current) setVenuesLoading(false);
       });
     return () => { cancelled = true; };
   }, []);
@@ -110,37 +105,51 @@ export function PlayerDiscoveryView({ user }: Props) {
 
   // Subtitle for recommended section
   const getSubtitle = () => {
-    const hasSports = userSports.length > 0;
-    const hasLocation = location.city != null || location.lat != null;
-    if (hasSports && hasLocation) return "Dựa trên môn bạn hay chơi và khu vực gần bạn";
-    if (hasSports) return "Dựa trên môn bạn hay chơi";
-    if (hasLocation) return "Sân gần bạn";
+    if (location.lat != null && location.lng != null) return "Gần bạn nhất trong các kết quả đã tải (tối đa 50 sân).";
     return "Sân phổ biến";
   };
 
-  const handleSearch = (params: { location: string; sportId: string; date: string }) => {
+  const handleSearch = (params: { keyword: string; sportId: string }) => {
     const p = new URLSearchParams();
-    if (params.location) p.set("Keyword", params.location);
+    if (params.keyword) p.set("Keyword", params.keyword);
     if (params.sportId) p.set("SportId", params.sportId);
     router.push(`/venues${p.toString() ? `?${p.toString()}` : ""}`);
   };
 
-  const handleLocationResolved = (loc: LocationState) => {
-    setLocation(loc);
-    setShowLocationCard(false);
+  const handleLocationResolved = async (loc: LocationState) => {
+    if (loc.lat == null || loc.lng == null) return;
+    const token = ++venueRequestToken.current;
+    setVenuesLoading(true);
+    try {
+      const result = await searchVenues({ pageIndex: 1, pageSize: 50 });
+      if (token !== venueRequestToken.current) return;
+      setVenues(sortVenuesByDistance(result.items, {
+        latitude: loc.lat,
+        longitude: loc.lng,
+      }).slice(0, 6));
+      setLocation(loc);
+      setShowLocationCard(false);
+    } finally {
+      if (token === venueRequestToken.current) setVenuesLoading(false);
+    }
   };
 
   const handleSkipLocation = () => {
+    venueRequestToken.current += 1;
+    setVenuesLoading(false);
     setShowLocationCard(false);
   };
 
   const handleSaveSports = async (sportIds: number[]) => {
-    // TODO: call addMySport for each selected sport
-    const names = availableSports
-      .filter((s) => sportIds.includes(s.id))
-      .map((s) => s.name);
-    setUserSports((prev) => [...new Set([...prev, ...names])]);
-    setShowSportCard(false);
+    const existingIds = new Set((await getMySports()).map((sport) => sport.sportId));
+    for (const sportId of sportIds) {
+      if (!existingIds.has(sportId)) {
+        await addMySport({ sportId, skillLevel: 0 });
+        existingIds.add(sportId);
+      }
+    }
+    const refreshed = await getMySports();
+    setUserSports(refreshed.map((sport) => sport.sportName));
   };
 
   const handleSkipSports = () => {

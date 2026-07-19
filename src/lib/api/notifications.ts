@@ -1,10 +1,26 @@
-import { apiFetch, buildQuery } from "@/lib/api/client";
+import { apiFetch, apiFetchPaged, buildQuery } from "@/lib/api/client";
 import type { NotificationDto, NotificationQueryDto } from "@/lib/types/api";
 
 export async function getMyNotifications(query: NotificationQueryDto = {}) {
-  const qs = buildQuery(query as Record<string, string | number | boolean | undefined | null>);
-  const res = await apiFetch<NotificationDto[]>(`/Notifications${qs}`);
-  return res.data ?? [];
+  const page = await getMyNotificationsPage(query);
+  return page.items;
+}
+
+export async function getMyNotificationsPage(query: NotificationQueryDto = {}) {
+  const normalizedQuery = {
+    ...query,
+    pageIndex: Math.max(1, query.pageIndex ?? 1),
+    pageSize: Math.min(50, Math.max(1, query.pageSize ?? 20)),
+  };
+  const qs = buildQuery(normalizedQuery as Record<string, string | number | boolean | undefined | null>);
+  const res = await apiFetchPaged<NotificationDto[]>(`/Notifications${qs}`);
+  return {
+    items: res.data ?? [],
+    totalCount: res.totalCount,
+    totalPages: res.totalPages,
+    pageIndex: res.pageIndex,
+    pageSize: res.pageSize,
+  };
 }
 
 export async function getUnreadCount(): Promise<number> {

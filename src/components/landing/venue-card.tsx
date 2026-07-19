@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, Chip, Button, Link, Separator } from "@heroui/react";
+import { buttonVariants } from "@heroui/styles/components/button";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Star from "@gravity-ui/icons/Star";
 import type { DiscoveryVenue } from "@/lib/types/discovery";
@@ -52,16 +53,12 @@ export function VenueCard({ venue }: { venue: DiscoveryVenue }) {
           <Separator className="my-3" />
 
           <div className="flex items-center gap-2">
-            <Link href={`/venues/${venue.id}`} className="flex-1">
-              <Button variant="ghost" size="sm" className="w-full">
-                Xem sân
-              </Button>
-            </Link>
-            <Link href={`/venues/${venue.id}?book=1`} className="flex-1">
-              <Button variant="primary" size="sm" className="w-full" isDisabled={!venue.isOpenNow}>
-                Đặt sân
-              </Button>
-            </Link>
+            <Link href={`/venues/${venue.id}`} className={buttonVariants({ variant: "ghost", size: "sm", className: "min-h-11 flex-1" })}>Xem sân</Link>
+            {venue.isOpenNow ? (
+              <Link href={`/venues/${venue.id}?book=1`} className={buttonVariants({ variant: "primary", size: "sm", className: "min-h-11 flex-1" })}>Đặt sân</Link>
+            ) : (
+              <Button variant="primary" size="sm" className="min-h-11 flex-1" isDisabled>Đặt sân</Button>
+            )}
           </div>
         </div>
       </Card.Content>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Card, Chip, Alert, Skeleton, Pagination, Select, ListBox, Label, TextField, Input, Modal } from "@heroui/react";
+import { Button, Card, Chip, Alert, Skeleton, Pagination, Select, ListBox, Label, TextField, Input, Modal, Checkbox, FieldError } from "@heroui/react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { PlayerBottomNav } from "@/components/layout/player-bottom-nav";
 import { searchMatches } from "@/lib/api/matches";
@@ -17,6 +17,7 @@ import Calendar from "@gravity-ui/icons/Calendar";
 import Plus from "@gravity-ui/icons/Plus";
 import type { Key } from "@heroui/react";
 import { CreateMatchPage } from "./create-match-page";
+import { toLocalIsoAtWallTime } from "@/lib/utils/player-flow";
 
 export function MatchesBrowsePage() {
   const router = useRouter();
@@ -29,10 +30,42 @@ export function MatchesBrowsePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const mountedRef = useRef(false);
+  const requestGenerationRef = useRef(0);
 
-  const keyword = searchParams.get("keyword") ?? "";
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestGenerationRef.current += 1;
+    };
+  }, []);
+
+  const location = searchParams.get("location") ?? "";
   const sportId = searchParams.get("sportId") ? Number(searchParams.get("sportId")) : null;
+  const skillLevel = searchParams.get("skillLevel") ? Number(searchParams.get("skillLevel")) : null;
+  const startFrom = searchParams.get("startFrom") ?? "";
+  const startTo = searchParams.get("startTo") ?? "";
+  const includeFull = searchParams.get("includeFull") === "true";
   const pageIndex = Math.max(1, Number(searchParams.get("page")) || 1);
+  const [draftLocation, setDraftLocation] = useState(location);
+  const [draftSportId, setDraftSportId] = useState<Key | null>(sportId);
+  const [draftSkillLevel, setDraftSkillLevel] = useState<Key | null>(skillLevel);
+  const [draftStartFrom, setDraftStartFrom] = useState(startFrom);
+  const [draftStartTo, setDraftStartTo] = useState(startTo);
+  const [draftIncludeFull, setDraftIncludeFull] = useState(includeFull);
+  const [filterError, setFilterError] = useState("");
+
+  useEffect(() => {
+    setDraftLocation(location);
+    setDraftSportId(sportId);
+    setDraftSkillLevel(skillLevel);
+    setDraftStartFrom(startFrom);
+    setDraftStartTo(startTo);
+    setDraftIncludeFull(includeFull);
+    setFilterError("");
+  }, [includeFull, location, skillLevel, sportId, startFrom, startTo]);
 
   useEffect(() => {
     getAllSports()
@@ -41,24 +74,32 @@ export function MatchesBrowsePage() {
   }, []);
 
   const fetchMatches = useCallback(async () => {
+    const generation = ++requestGenerationRef.current;
     setLoading(true);
     setError(null);
     try {
       const result = await searchMatches({
-        location: keyword || undefined,
+        location: location || undefined,
         sportId: sportId ?? undefined,
+        skillLevel: skillLevel ?? undefined,
+        startFrom: startFrom ? toLocalIsoAtWallTime(startFrom, "00:00") : undefined,
+        startTo: startTo ? toLocalIsoAtWallTime(startTo, "23:59") : undefined,
+        includeFull: includeFull || undefined,
         pageIndex,
         pageSize: 12,
       });
+      if (!mountedRef.current || generation !== requestGenerationRef.current) return;
       setMatches(result.items);
       setTotalCount(result.totalCount);
       setTotalPages(result.totalPages);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Không thể tải danh sách kèo đấu");
+      if (mountedRef.current && generation === requestGenerationRef.current) {
+        setError(err instanceof Error ? err.message : "Không thể tải danh sách kèo đấu");
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current && generation === requestGenerationRef.current) setLoading(false);
     }
-  }, [keyword, sportId, pageIndex]);
+  }, [includeFull, location, pageIndex, skillLevel, sportId, startFrom, startTo]);
 
   useEffect(() => {
     fetchMatches();
@@ -66,25 +107,62 @@ export function MatchesBrowsePage() {
 
   const navigateWith = (params: Record<string, string | null>) => {
     const p = new URLSearchParams();
-    if (params.keyword) p.set("keyword", params.keyword);
+    if (params.location) p.set("location", params.location);
     if (params.sportId) p.set("sportId", params.sportId);
+    if (params.skillLevel) p.set("skillLevel", params.skillLevel);
+    if (params.startFrom) p.set("startFrom", params.startFrom);
+    if (params.startTo) p.set("startTo", params.startTo);
+    if (params.includeFull) p.set("includeFull", params.includeFull);
     if (params.page && params.page !== "1") p.set("page", params.page);
     router.push(`/matches${p.toString() ? `?${p}` : ""}`);
   };
 
   const handlePageChange = (page: number) => {
     navigateWith({
-      keyword,
+      location,
       sportId: sportId ? String(sportId) : null,
+      skillLevel: skillLevel != null ? String(skillLevel) : null,
+      startFrom: startFrom || null,
+      startTo: startTo || null,
+      includeFull: includeFull ? "true" : null,
       page: String(page),
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const LEVEL_MAP: Record<number, string> = {
-    0: "Mới chơi",
-    1: "Trung bình",
-    2: "Nâng cao",
+  const applyFilters = () => {
+    if (draftStartFrom && draftStartTo && draftStartFrom > draftStartTo) {
+      setFilterError("Ngày kết thúc phải bằng hoặc sau ngày bắt đầu");
+      return;
+    }
+    try {
+      if (draftStartFrom) toLocalIsoAtWallTime(draftStartFrom, "00:00");
+      if (draftStartTo) toLocalIsoAtWallTime(draftStartTo, "23:59");
+    } catch {
+      setFilterError("Khoảng ngày không tồn tại trong múi giờ hiện tại");
+      return;
+    }
+    setFilterError("");
+    navigateWith({
+      location: draftLocation.trim() || null,
+      sportId: draftSportId != null ? String(draftSportId) : null,
+      skillLevel: draftSkillLevel != null ? String(draftSkillLevel) : null,
+      startFrom: draftStartFrom || null,
+      startTo: draftStartTo || null,
+      includeFull: draftIncludeFull ? "true" : null,
+      page: null,
+    });
+  };
+
+  const resetFilters = () => {
+    setDraftLocation("");
+    setDraftSportId(null);
+    setDraftSkillLevel(null);
+    setDraftStartFrom("");
+    setDraftStartTo("");
+    setDraftIncludeFull(false);
+    setFilterError("");
+    router.push("/matches");
   };
 
   return (
@@ -106,21 +184,21 @@ export function MatchesBrowsePage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="mb-6 grid gap-3 rounded-[var(--radius)] border border-[var(--border)] p-4 sm:grid-cols-2 lg:grid-cols-4">
           <TextField
-            className="flex-1"
-            value={keyword}
-            onChange={(v) => navigateWith({ keyword: v || null, sportId: sportId ? String(sportId) : null, page: null })}
+            className="sm:col-span-2"
+            value={draftLocation}
+            onChange={setDraftLocation}
           >
-            <Label>Tìm kiếm</Label>
-            <Input placeholder="Tìm kiếm kèo đấu..." />
+            <Label>Địa điểm</Label>
+            <Input placeholder="Quận, thành phố hoặc tên sân" />
           </TextField>
 
           <Select
             className="w-full sm:w-48"
             placeholder="Môn thể thao"
-            value={sportId}
-            onChange={(k: Key | null) => navigateWith({ keyword, sportId: k ? String(k) : null, page: null })}
+            value={draftSportId}
+            onChange={setDraftSportId}
           >
             <Label>Môn thể thao</Label>
             <Select.Trigger>
@@ -129,7 +207,6 @@ export function MatchesBrowsePage() {
             </Select.Trigger>
             <Select.Popover>
               <ListBox>
-                <ListBox.Item id="" textValue="Tất cả">Tất cả<ListBox.ItemIndicator /></ListBox.Item>
                 {sports.map((s) => (
                   <ListBox.Item key={s.id} id={s.id} textValue={s.name}>
                     {s.name}<ListBox.ItemIndicator />
@@ -138,7 +215,24 @@ export function MatchesBrowsePage() {
               </ListBox>
             </Select.Popover>
           </Select>
-
+          <Select className="w-full" placeholder="Mọi trình độ" value={draftSkillLevel} onChange={setDraftSkillLevel}>
+            <Label>Trình độ</Label>
+            <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+            <Select.Popover><ListBox>
+              <ListBox.Item id={0} textValue="Mới chơi">Mới chơi<ListBox.ItemIndicator /></ListBox.Item>
+              <ListBox.Item id={1} textValue="Trung bình">Trung bình<ListBox.ItemIndicator /></ListBox.Item>
+              <ListBox.Item id={2} textValue="Nâng cao">Nâng cao<ListBox.ItemIndicator /></ListBox.Item>
+            </ListBox></Select.Popover>
+          </Select>
+          <TextField value={draftStartFrom} onChange={setDraftStartFrom} isInvalid={!!filterError}><Label>Từ ngày</Label><Input type="date" /></TextField>
+          <TextField value={draftStartTo} onChange={setDraftStartTo} isInvalid={!!filterError}><Label>Đến ngày</Label><Input type="date" />{filterError && <FieldError>{filterError}</FieldError>}</TextField>
+          <Checkbox isSelected={draftIncludeFull} onChange={setDraftIncludeFull} className="min-h-11 self-end">
+            <Checkbox.Content><Checkbox.Control><Checkbox.Indicator /></Checkbox.Control>Bao gồm kèo đã đủ người</Checkbox.Content>
+          </Checkbox>
+          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-1">
+            <Button className="min-h-11 flex-1" variant="primary" onPress={applyFilters}>Áp dụng bộ lọc</Button>
+            <Button className="min-h-11" variant="outline" onPress={resetFilters}>Đặt lại bộ lọc</Button>
+          </div>
         </div>
 
         {/* Error */}
@@ -283,10 +377,10 @@ export function MatchesBrowsePage() {
         )}
       </main>
       <Modal>
-        <Modal.Backdrop isOpen={createOpen} onOpenChange={setCreateOpen} variant="blur">
+        <Modal.Backdrop isOpen={createOpen} onOpenChange={(open) => { if (open || !createSubmitting) setCreateOpen(open); }} variant="blur">
           <Modal.Container size="lg" scroll="inside">
             <Modal.Dialog aria-label="Tạo kèo mới">
-              <Modal.CloseTrigger />
+              {!createSubmitting && <Modal.CloseTrigger />}
               <Modal.Header>
                 <div>
                   <Modal.Heading>Tạo kèo mới</Modal.Heading>
@@ -294,11 +388,13 @@ export function MatchesBrowsePage() {
                 </div>
               </Modal.Header>
               <Modal.Body className="px-6 py-0">
-                <CreateMatchPage embedded />
+                <CreateMatchPage embedded onSubmittingChange={setCreateSubmitting} />
               </Modal.Body>
               <Modal.Footer>
-                <Button slot="close" variant="secondary">Hủy</Button>
-                <Button form="create-match-form" type="submit">Tạo kèo đấu</Button>
+                <Button variant="secondary" isDisabled={createSubmitting} onPress={() => { if (!createSubmitting) setCreateOpen(false); }}>Hủy</Button>
+                <Button form="create-match-form" type="submit" isDisabled={createSubmitting} isPending={createSubmitting}>
+                  {createSubmitting ? "Đang tạo..." : "Tạo kèo đấu"}
+                </Button>
               </Modal.Footer>
             </Modal.Dialog>
           </Modal.Container>

@@ -7,6 +7,7 @@ import type {
   MatchJoinRequestDto,
   RespondJoinRequestDto,
   MatchInvitationDto,
+  MatchCandidateDto,
   CreateMatchInvitationDto,
   RespondMatchInvitationDto,
 } from "@/lib/types/api";
@@ -107,13 +108,17 @@ export async function leaveMatch(id: number): Promise<void> {
 
 export async function invitePlayer(
   id: number,
-  inviteeId: number,
+  body: CreateMatchInvitationDto,
 ): Promise<void> {
-  const body: CreateMatchInvitationDto = { inviteeId };
   await apiFetch(`/Matches/${id}/invitations`, {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function getMatchCandidates(id: number): Promise<MatchCandidateDto[]> {
+  const res = await apiFetch<MatchCandidateDto[]>(`/Matches/${id}/candidates?limit=20`);
+  return res.data ?? [];
 }
 
 export async function getMyInvitations(): Promise<MatchInvitationDto[]> {

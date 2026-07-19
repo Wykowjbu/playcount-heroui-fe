@@ -172,8 +172,8 @@ function VenueDetail({ venueId }: { venueId: number }) {
       {error && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content></Alert>}
 
       <Tabs className="w-full" selectedKey={selectedTab} onSelectionChange={selectTab}>
-        <Tabs.ListContainer className="overflow-x-auto">
-          <Tabs.List aria-label="Quản lý cơ sở" className="!flex !justify-start gap-2 ![inline-size:max-content] [&_[role=tab]]:!w-auto">
+        <Tabs.ListContainer>
+          <Tabs.List aria-label="Quản lý cơ sở">
             <Tabs.Tab id="overview">Tổng quan<Tabs.Indicator /></Tabs.Tab>
             <Tabs.Tab id="courts">Sân ({courts.length})<Tabs.Indicator /></Tabs.Tab>
             <Tabs.Tab id="hours">Giờ mở cửa<Tabs.Indicator /></Tabs.Tab>

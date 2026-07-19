@@ -1,4 +1,3 @@
-import { apiFetch } from "@/lib/api/client";
 import type { PaymentDto } from "@/lib/types/api";
 
 /* ------------------------------------------------------------------ */
@@ -17,9 +16,28 @@ export interface CreatePayOsResponse {
   createdAt: string;
 }
 
+const PAYOS_CHECKOUT_HOSTS = new Set(["img.payos.vn", "pay.payos.vn"]);
+
+export function getTrustedPayOsCheckoutUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:"
+      && PAYOS_CHECKOUT_HOSTS.has(url.hostname)
+      && !url.username
+      && !url.password
+      && !url.port
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function createPayOsPayment(
   bookingId: number,
 ): Promise<CreatePayOsResponse> {
+  const { apiFetch } = await import("@/lib/api/client");
   const res = await apiFetch<CreatePayOsResponse>(
     `/Payments/bookings/${bookingId}/payos`,
     { method: "POST" },
@@ -30,6 +48,7 @@ export async function createPayOsPayment(
 export async function syncPayOsPayment(
   bookingId: number,
 ): Promise<PaymentDto> {
+  const { apiFetch } = await import("@/lib/api/client");
   const res = await apiFetch<PaymentDto>(
     `/Payments/bookings/${bookingId}/sync-payos`,
     { method: "POST" },
@@ -40,6 +59,7 @@ export async function syncPayOsPayment(
 export async function getBookingPayments(
   bookingId: number,
 ): Promise<PaymentDto[]> {
+  const { apiFetch } = await import("@/lib/api/client");
   const res = await apiFetch<PaymentDto[]>(
     `/Payments/bookings/${bookingId}`,
   );

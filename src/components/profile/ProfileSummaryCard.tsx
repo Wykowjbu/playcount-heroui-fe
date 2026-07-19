@@ -27,9 +27,9 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const PLAYER_QUICK_LINKS = [
-  { href: "/bookings", label: "Lịch đặt của tôi", icon: Calendar },
-  { href: "/matches", label: "Kèo đấu của tôi", icon: MapPin },
-  { href: "/favorites", label: "Sân yêu thích", icon: CircleCheck },
+  { href: "/player/bookings", label: "Lịch đặt của tôi", icon: Calendar },
+  { href: "/player/matches", label: "Kèo đấu của tôi", icon: MapPin },
+  { href: "/player/favorites", label: "Sân yêu thích", icon: CircleCheck },
 ];
 
 const OWNER_QUICK_LINKS = [
@@ -142,7 +142,7 @@ export function ProfileSummaryCard({ profile, onProfileUpdate, role }: Props) {
           <Link
             key={link.href}
             href={link.href}
-            className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm transition-colors text-muted hover:text-foreground hover:bg-surface-secondary/50"
+            className="flex min-h-11 items-center justify-between gap-2 px-3 rounded-xl text-sm transition-colors text-muted hover:text-foreground hover:bg-surface-secondary/50"
           >
             <span className="flex items-center gap-2">
               <link.icon className="w-4 h-4" />

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Alert,
   Button,
   Breadcrumbs,
   Card,
@@ -18,9 +19,8 @@ import {
   Separator,
   Skeleton,
   Tabs,
-  TimeField,
 } from "@heroui/react";
-import { type DateValue, Time } from "@internationalized/date";
+import { parseDate, type DateValue } from "@internationalized/date";
 import { SiteHeader } from "@/components/layout/site-header";
 import type { Key } from "@heroui/react";
 import {
@@ -41,8 +41,12 @@ import type {
   OpeningHourDto,
   ReviewResponseDto,
   RatingStatsDto,
+  VenueAvailabilityResponseDto,
+  VenueAvailabilitySlotDto,
 } from "@/lib/types/api";
-import { formatDate } from "@/lib/utils/format";
+import { formatDate, formatVnd } from "@/lib/utils/format";
+import { getVenueAvailability } from "@/lib/api/discovery";
+import { getBookableDurations } from "@/lib/utils/player-flow";
 
 // ─── Props ───
 interface Props {
@@ -55,24 +59,6 @@ interface Props {
 }
 
 // ─── Format helpers ───
-function formatPrice(n?: number | null) {
-  return (n ?? 0).toLocaleString("vi-VN") + "đ";
-}
-
-function parseTime(timeStr: string) {
-  if (!timeStr) return null;
-  const [h, m] = timeStr.split(":").map(Number);
-  return new Time(h, m);
-}
-
-/** TimeField client-only wrapper — avoids hydration mismatch from locale-dependent segments */
-function ClientTimeField(props: React.ComponentProps<typeof TimeField>) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return <div className="w-full h-16" />;
-  return <TimeField {...props} />;
-}
-
 const DAY_NAMES = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
 
 function formatOpeningHours(openingHours: OpeningHourDto[]): string[] {
@@ -131,23 +117,70 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
   const [selectedCourtId, setSelectedCourtId] = useState<Key | null>(null);
   const [selectedSportId, setSelectedSportId] = useState<Key | null>(null);
   const [selectedDate, setSelectedDate] = useState<DateValue | null>(null);
-  const [selectedTime, setSelectedTime] = useState("");
+  const [selectedStartAt, setSelectedStartAt] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<Key | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [availability, setAvailability] = useState<VenueAvailabilityResponseDto | null>(null);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
-  const selectedCourt = courts.find((c) => c.id === selectedCourtId);
   const availableCourts = courts.filter((c) => c.status === "Available" || c.status === "available");
   const availableSports = Array.from(new Map(availableCourts.map((court) => [court.sportId, court.sportName])).entries());
   const filteredCourts = selectedSportId
     ? availableCourts.filter((court) => court.sportId === Number(selectedSportId))
     : [];
 
-  const isFormComplete = selectedSportId && selectedCourtId && selectedDate && selectedTime && selectedDuration;
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const courtId = Number(params.get("court"));
+    const date = params.get("date");
+    const court = courts.find(({ id }) => id === courtId);
+    if (court) {
+      setSelectedSportId(court.sportId);
+      setSelectedCourtId(court.id);
+    }
+    if (date) {
+      try { setSelectedDate(parseDate(date)); } catch { /* Ignore malformed recovery context. */ }
+    }
+  }, [courts]);
+
+  useEffect(() => {
+    setSelectedStartAt("");
+    setSelectedDuration(null);
+    setAvailability(null);
+    setAvailabilityError(null);
+    setAvailabilityLoading(false);
+    if (!selectedCourtId || !selectedDate) return;
+
+    let current = true;
+    setAvailabilityLoading(true);
+    getVenueAvailability(venueId, selectedDate.toString())
+      .then((result) => { if (current) setAvailability(result); })
+      .catch((error: unknown) => { if (current) setAvailabilityError(error instanceof Error ? error.message : "Không thể tải lịch trống."); })
+      .finally(() => { if (current) setAvailabilityLoading(false); });
+    return () => { current = false; };
+  }, [venueId, selectedCourtId, selectedDate, retryKey]);
+
+  const selectedBookingCourt = availability?.courts.find(({ id }) => id === Number(selectedCourtId));
+  const selectedStartIndex = selectedBookingCourt?.slots.findIndex(({ startAt }) => startAt === selectedStartAt) ?? -1;
+  const selectedEndAt = selectedStartIndex >= 0 && selectedDuration
+    ? selectedBookingCourt?.slots[selectedStartIndex + Number(selectedDuration) / 30 - 1]?.endAt
+    : undefined;
+  const isFormComplete = selectedSportId && selectedCourtId && selectedDate && selectedStartAt && selectedDuration && selectedEndAt;
 
   const handleBook = () => {
-    router.push(
-      `/bookings/checkout?venue=${venueId}&court=${selectedCourtId}&date=${selectedDate}&time=${selectedTime}&duration=${selectedDuration}`,
-    );
+    if (!selectedCourtId || !selectedDate || !selectedStartAt || !selectedDuration || !selectedEndAt) return;
+    const params = new URLSearchParams({
+      venue: String(venueId),
+      court: String(selectedCourtId),
+      date: selectedDate.toString(),
+      time: selectedStartAt.slice(11, 16),
+      duration: String(selectedDuration),
+      startAt: selectedStartAt,
+      endAt: selectedEndAt,
+    });
+    router.push(`/bookings/checkout?${params}`);
   };
 
   const venueImages = (venue.images ?? []).map((i) => i.imageUrl);
@@ -168,14 +201,14 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
           </Breadcrumbs>
         </div>
         <div className="lg:hidden">
-          <Link className="inline-flex items-center gap-1 text-sm" href="/">
+          <Link className="inline-flex min-h-11 items-center gap-1 text-sm" href="/venues">
             <ChevronLeft className="size-4" />
             Quay lại
           </Link>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8 lg:pb-12">
+      <div className="mx-auto max-w-7xl px-4 pb-32 sm:px-6 lg:px-8 lg:pb-12">
         {/* ─── HERO GALLERY ─── */}
         <HeroGallery images={venueImages} name={venue.name} />
 
@@ -214,6 +247,14 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
                   <Smartphone className="size-4" />{venue.phone}
                 </a>
               )}
+              <a
+                className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 font-medium text-[var(--accent)] focus-visible:outline-2 focus-visible:outline-offset-2"
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.latitude != null && venue.longitude != null ? `${venue.latitude},${venue.longitude}` : venue.address)}`}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <MapPin className="size-4" />Mở chỉ đường
+              </a>
             </div>
 
             {venueAmenities.length > 0 && (
@@ -246,8 +287,6 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
                   courts={courts}
                   selectedCourtId={selectedCourtId}
                   onSelectCourt={setSelectedCourtId}
-                  selectedTime={selectedTime}
-                  onSelectTime={setSelectedTime}
                 />
               </Tabs.Panel>
 
@@ -271,18 +310,21 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
                 courts={filteredCourts}
                 sports={availableSports}
                 selectedSportId={selectedSportId}
-                onSportChange={(key) => { setSelectedSportId(key); setSelectedCourtId(null); }}
+                onSportChange={(key) => { setSelectedSportId(key); setSelectedCourtId(null); setSelectedDate(null); }}
                 selectedCourtId={selectedCourtId}
-                onCourtChange={setSelectedCourtId}
+                onCourtChange={(key) => { setSelectedCourtId(key); setSelectedDate(null); }}
                 selectedDate={selectedDate}
                 onDateChange={setSelectedDate}
-                selectedTime={selectedTime}
-                onTimeChange={setSelectedTime}
+                selectedStartAt={selectedStartAt}
+                onStartAtChange={setSelectedStartAt}
                 selectedDuration={selectedDuration}
                 onDurationChange={setSelectedDuration}
+                availability={availability}
+                availabilityLoading={availabilityLoading}
+                availabilityError={availabilityError}
+                onRetry={() => setRetryKey((key) => key + 1)}
                 isFormComplete={!!isFormComplete}
                 onBook={handleBook}
-                phone={venue.phone}
               />
             </div>
           </div>
@@ -290,7 +332,7 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
       </div>
 
       {/* ─── MOBILE STICKY BAR ─── */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] p-4 lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs text-[var(--muted)]">Giá từ</p>
@@ -317,18 +359,21 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
                   courts={filteredCourts}
                   sports={availableSports}
                   selectedSportId={selectedSportId}
-                  onSportChange={(key) => { setSelectedSportId(key); setSelectedCourtId(null); }}
+                  onSportChange={(key) => { setSelectedSportId(key); setSelectedCourtId(null); setSelectedDate(null); }}
                   selectedCourtId={selectedCourtId}
-                  onCourtChange={setSelectedCourtId}
+                  onCourtChange={(key) => { setSelectedCourtId(key); setSelectedDate(null); }}
                   selectedDate={selectedDate}
                   onDateChange={setSelectedDate}
-                  selectedTime={selectedTime}
-                  onTimeChange={setSelectedTime}
+                  selectedStartAt={selectedStartAt}
+                  onStartAtChange={setSelectedStartAt}
                   selectedDuration={selectedDuration}
                   onDurationChange={setSelectedDuration}
+                  availability={availability}
+                  availabilityLoading={availabilityLoading}
+                  availabilityError={availabilityError}
+                  onRetry={() => setRetryKey((key) => key + 1)}
                   isFormComplete={!!isFormComplete}
                   onBook={() => { handleBook(); setDrawerOpen(false); }}
-                  phone={venue.phone}
                 />
               </Drawer.Body>
             </Drawer.Dialog>
@@ -347,8 +392,12 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
 function HeroGallery({ images, name }: { images: string[]; name: string }) {
   if (!images.length) {
     return (
-      <div className="h-64 rounded-2xl bg-[var(--surface-secondary)] lg:h-96">
-        <Skeleton className="h-full w-full rounded-2xl" />
+      <div className="flex min-h-40 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--accent)]/15 via-[var(--surface-secondary)] to-[var(--surface)] px-6 text-center sm:min-h-48">
+        <div>
+          <MapPin className="mx-auto mb-3 size-8 text-[var(--accent)]" />
+          <p className="font-semibold">{name}</p>
+          <p className="mt-1 text-sm text-[var(--muted)]">Không gian thể thao của PlayCourt</p>
+        </div>
       </div>
     );
   }
@@ -368,13 +417,11 @@ function HeroGallery({ images, name }: { images: string[]; name: string }) {
 
 // ─── Courts Tab ───
 function CourtsTab({
-  courts, selectedCourtId, onSelectCourt, selectedTime, onSelectTime,
+  courts, selectedCourtId, onSelectCourt,
 }: {
   courts: CourtDto[];
   selectedCourtId: Key | null;
   onSelectCourt: (id: Key | null) => void;
-  selectedTime: string;
-  onSelectTime: (t: string) => void;
 }) {
   const selectedCourt = courts.find((c) => c.id === selectedCourtId);
 
@@ -417,7 +464,7 @@ function CourtsTab({
             Khung giờ trống — {selectedCourt.name}
           </p>
           <p className="text-xs text-[var(--muted)]">
-            Vui lòng chọn ngày ở widget bên phải để xem lịch trống
+            Chọn ngày trong bảng đặt sân để xem đủ 48 khung giờ từ backend.
           </p>
         </div>
       )}
@@ -525,9 +572,10 @@ function InfoTab({ openingHours, description }: { openingHours: string[]; descri
 function BookingWidget({
   courts, sports, selectedSportId, onSportChange, selectedCourtId, onCourtChange,
   selectedDate, onDateChange,
-  selectedTime, onTimeChange,
+  selectedStartAt, onStartAtChange,
   selectedDuration, onDurationChange,
-  isFormComplete, onBook, phone,
+  availability, availabilityLoading, availabilityError, onRetry,
+  isFormComplete, onBook,
 }: {
   courts: CourtDto[];
   sports: [number, string][];
@@ -537,33 +585,39 @@ function BookingWidget({
   onCourtChange: (k: Key | null) => void;
   selectedDate: DateValue | null;
   onDateChange: (d: DateValue | null) => void;
-  selectedTime: string;
-  onTimeChange: (t: string) => void;
+  selectedStartAt: string;
+  onStartAtChange: (startAt: string) => void;
   selectedDuration: Key | null;
   onDurationChange: (k: Key | null) => void;
+  availability: VenueAvailabilityResponseDto | null;
+  availabilityLoading: boolean;
+  availabilityError: string | null;
+  onRetry: () => void;
   isFormComplete: boolean;
   onBook: () => void;
-  phone: string | null;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const selectedAvailabilityCourt = availability?.courts.find(({ id }) => id === Number(selectedCourtId));
+  const slots = selectedAvailabilityCourt?.slots ?? [];
+  const hasBookableStart = slots.some((slot) => slot.canStartBooking && slot.status === "Available");
+  const selectedStartIndex = slots.findIndex(({ startAt }) => startAt === selectedStartAt);
+  const durations = selectedStartIndex >= 0 ? getBookableDurations(slots, selectedStartIndex) : [];
+  const duration = Number(selectedDuration);
+  const selectedSlots = selectedStartIndex >= 0 && duration
+    ? slots.slice(selectedStartIndex, selectedStartIndex + duration / 30)
+    : [];
+  const selectedEnd = selectedSlots.at(-1)?.endAt.slice(11, 16);
+  const selectedTime = selectedStartAt.slice(11, 16);
+  const selectedPrice = selectedSlots.length > 0 && selectedSlots.every(({ estimatedPrice }) => estimatedPrice != null)
+    ? selectedSlots.reduce((sum, { estimatedPrice }) => sum + estimatedPrice!, 0)
+    : null;
 
-  if (!mounted) {
-    return (
-      <Card>
-        <Card.Content className="space-y-4 p-5">
-          <Skeleton className="h-6 w-32" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </Card.Content>
-      </Card>
-    );
-  }
+  const statusLabel = (slot: VenueAvailabilitySlotDto) => ({
+    Available: "Trống",
+    Booked: "Đã đặt",
+    Held: "Đang giữ",
+    Maintenance: "Bảo trì",
+    Closed: "Đóng cửa",
+  })[slot.status];
 
   return (
     <Card>
@@ -621,26 +675,82 @@ function BookingWidget({
           </DatePicker.Popover>
         </DatePicker>
 
-        <ClientTimeField
-          className="w-full"
-          value={parseTime(selectedTime)}
-          onChange={(v) => {
-            if (v) onTimeChange(`${String(v.hour).padStart(2, "0")}:${String(v.minute).padStart(2, "0")}`);
-          }}
-        >
-          <Label>Giờ bắt đầu</Label>
-          <TimeField.Group>
-            <TimeField.Input>
-              {(segment) => <TimeField.Segment segment={segment} />}
-            </TimeField.Input>
-          </TimeField.Group>
-        </ClientTimeField>
+        {availabilityLoading && (
+          <div aria-live="polite" className="space-y-2">
+            <p className="text-sm font-medium">Đang tải lịch trống</p>
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </div>
+        )}
+
+        {!availabilityLoading && availabilityError && (
+          <Alert status="danger">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>Không thể tải lịch trống</Alert.Title>
+              <Alert.Description>{availabilityError}</Alert.Description>
+              <Button className="mt-2 min-h-11" variant="secondary" onPress={onRetry}>Thử lại</Button>
+            </Alert.Content>
+          </Alert>
+        )}
+
+        {!availabilityLoading && availability?.venue.isClosed && (
+          <Alert status="warning"><Alert.Indicator /><Alert.Content><Alert.Title>Sân đóng cửa ngày này</Alert.Title></Alert.Content></Alert>
+        )}
+
+        {!availabilityLoading && availability && !availability.venue.isClosed && !selectedAvailabilityCourt && (
+          <p className="rounded-xl bg-[var(--surface-secondary)] p-4 text-sm">Sân con này chưa có lịch trống.</p>
+        )}
+
+        {!availabilityLoading && selectedAvailabilityCourt && slots.length === 0 && (
+          <p className="rounded-xl bg-[var(--surface-secondary)] p-4 text-sm">Không có khung giờ cho ngày đã chọn.</p>
+        )}
+
+        {!availabilityLoading && !availabilityError && slots.length > 0 && !hasBookableStart && (
+          <Alert>
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>Không có khung giờ có thể đặt trong ngày này</Alert.Title>
+              <Alert.Description>Vui lòng chọn ngày khác để xem lịch trống.</Alert.Description>
+            </Alert.Content>
+          </Alert>
+        )}
+
+        {!availabilityLoading && !availabilityError && slots.length > 0 && (
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium">Giờ bắt đầu</legend>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--muted)]" aria-label="Chú thích trạng thái lịch">
+              <span>Trống</span><span>Đã đặt</span><span>Đang giữ</span><span>Bảo trì</span><span>Đóng cửa</span>
+            </div>
+            <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
+              {slots.map((slot, index) => {
+                const time = slot.startAt.slice(11, 16);
+                const label = statusLabel(slot);
+                const isSelected = selectedStartAt === slot.startAt;
+                const choices = getBookableDurations(slots, index);
+                const defaultDuration = choices.includes(60) ? 60 : choices[0];
+                return (
+                  <Button
+                    key={slot.startAt}
+                    aria-label={`${time} · ${label}`}
+                    className="min-h-11 px-2 text-xs"
+                    isDisabled={!slot.canStartBooking || slot.status !== "Available"}
+                    variant={isSelected ? "primary" : "secondary"}
+                    onPress={() => { onStartAtChange(slot.startAt); onDurationChange(defaultDuration ? String(defaultDuration) : null); }}
+                  >
+                    <span>{time}</span><span className="text-[0.65rem]">{label}</span>
+                  </Button>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
 
         <Select
           className="w-full"
-          placeholder="Chọn thời lượng"
+          placeholder={selectedStartAt ? "Chọn thời lượng" : "Chọn giờ bắt đầu trước"}
           value={selectedDuration}
           onChange={onDurationChange}
+          isDisabled={!selectedStartAt || durations.length === 0}
         >
           <Label>Thời lượng</Label>
           <Select.Trigger>
@@ -649,31 +759,29 @@ function BookingWidget({
           </Select.Trigger>
           <Select.Popover>
             <ListBox>
-              <ListBox.Item id="60" textValue="60 phút">60 phút<ListBox.ItemIndicator /></ListBox.Item>
-              <ListBox.Item id="90" textValue="90 phút">90 phút<ListBox.ItemIndicator /></ListBox.Item>
-              <ListBox.Item id="120" textValue="120 phút">120 phút<ListBox.ItemIndicator /></ListBox.Item>
+              {durations.map((minutes) => (
+                <ListBox.Item id={String(minutes)} key={minutes} textValue={`${minutes} phút`}>
+                  {minutes} phút<ListBox.ItemIndicator />
+                </ListBox.Item>
+              ))}
             </ListBox>
           </Select.Popover>
         </Select>
+
+        {selectedAvailabilityCourt && selectedDate && selectedStartAt && duration > 0 && selectedEnd && (
+          <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4">
+            <p className="font-semibold">Thông tin đặt sân</p>
+            <p className="mt-1 text-sm">{selectedAvailabilityCourt.name} · {selectedDate.toString()}</p>
+            <p className="text-sm text-[var(--muted)]">{selectedTime}–{selectedEnd} · {duration} phút</p>
+            {selectedPrice != null && <p className="mt-2 font-semibold text-[var(--accent)]">{formatVnd(selectedPrice)}</p>}
+          </div>
+        )}
 
         <Button className="w-full" size="lg" isDisabled={!isFormComplete} onPress={onBook}>
           TIẾP TỤC ĐẶT SÂN
         </Button>
         {!isFormComplete && <p className="text-sm text-[var(--muted)]">Chọn môn, sân, ngày, giờ và thời lượng để tiếp tục.</p>}
 
-        <div className="flex gap-2">
-          {phone && (
-            <Link
-              className="flex-1 rounded-lg bg-[var(--surface-secondary)] px-3 py-1.5 text-center text-sm font-medium hover:bg-[var(--foreground)]/10"
-              href={`tel:${phone}`}
-            >
-              Liên hệ chủ sân
-            </Link>
-          )}
-          <Button className="flex-1" variant="secondary" size="sm">
-            Tạo kèo tại sân này
-          </Button>
-        </div>
       </Card.Content>
     </Card>
   );

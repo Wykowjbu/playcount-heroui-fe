@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Card, Button, Chip, Skeleton, Alert } from "@heroui/react";
+import { useRouter } from "next/navigation";
+import { Card, Button, Chip, Skeleton, Alert, Spinner } from "@heroui/react";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Clock from "@gravity-ui/icons/Clock";
 import Check from "@gravity-ui/icons/Check";
@@ -25,61 +26,108 @@ export default function FavoritesPage() {
 }
 
 function FavoritesContent() {
+  const router = useRouter();
   const [venues, setVenues] = useState<DiscoveryVenue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removingIds, setRemovingIds] = useState<Set<string>>(() => new Set());
+  const removingIdsRef = useRef(new Set<string>());
+  const mountedRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const loadGenerationRef = useRef(0);
+  const loadInFlightRef = useRef<Promise<void> | null>(null);
 
   const fetchFavorites = useCallback(async () => {
-    try {
-      setLoading(true);
+    if (loadInFlightRef.current) return loadInFlightRef.current;
+
+    const generation = ++loadGenerationRef.current;
+    if (!hasLoadedRef.current) setLoading(true);
+    const request = (async () => {
       setError(null);
-      const data = await getMyFavorites();
-      setVenues(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tải danh sách yêu thích");
-    } finally {
-      setLoading(false);
-    }
+      try {
+        const data = await getMyFavorites();
+        if (!mountedRef.current || generation !== loadGenerationRef.current) return;
+        setVenues(data);
+        hasLoadedRef.current = true;
+        setHasLoaded(true);
+      } catch {
+        if (mountedRef.current && generation === loadGenerationRef.current) {
+          setError("Không thể tải danh sách yêu thích");
+        }
+      } finally {
+        if (generation === loadGenerationRef.current) {
+          loadInFlightRef.current = null;
+          if (mountedRef.current) setLoading(false);
+        }
+      }
+    })();
+    loadInFlightRef.current = request;
+    return request;
   }, []);
 
   useEffect(() => {
-    fetchFavorites();
+    mountedRef.current = true;
+    void fetchFavorites();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [fetchFavorites]);
 
   const handleRemove = async (venueId: string) => {
+    if (removingIdsRef.current.has(venueId)) return;
+    removingIdsRef.current.add(venueId);
+    setRemovingIds(new Set(removingIdsRef.current));
+    setError(null);
     try {
-      setRemovingId(venueId);
       await removeFavorite(Number(venueId));
+      loadGenerationRef.current += 1;
+      loadInFlightRef.current = null;
       setVenues((prev) => prev.filter((v) => v.id !== venueId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể xóa khỏi yêu thích");
+    } catch {
+      setError("Không thể xóa khỏi yêu thích");
     } finally {
-      setRemovingId(null);
+      removingIdsRef.current.delete(venueId);
+      setRemovingIds(new Set(removingIdsRef.current));
     }
   };
 
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
       <SiteHeader />
-      <main className="mx-auto max-w-[1180px] px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Sân yêu thích</h1>
-          <p className="text-sm text-muted mt-1">
-            Danh sách sân thể thao bạn đã lưu
-          </p>
+      <main className="mx-auto w-full max-w-[1180px] min-w-0 overflow-x-hidden px-4 py-8">
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Sân yêu thích</h1>
+            <p className="text-sm text-muted mt-1">
+              Danh sách sân thể thao bạn đã lưu
+            </p>
+          </div>
+          {hasLoaded && (
+            <Button variant="secondary" className="min-h-11 shrink-0" onPress={() => void fetchFavorites()}>
+              Làm mới
+            </Button>
+          )}
         </div>
 
         {error && (
-          <Alert color="danger" className="mb-6">
-            {error}
+          <Alert status="danger" className="mb-6">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Description>{error}</Alert.Description>
+              {!loading && !hasLoaded && (
+                <Button size="sm" variant="secondary" className="mt-3" onPress={() => void fetchFavorites()}>
+                  Thử tải lại sân yêu thích
+                </Button>
+              )}
+            </Alert.Content>
           </Alert>
         )}
 
-        {loading ? (
+        {loading && !hasLoaded ? (
           <FavoritesSkeleton />
-        ) : venues.length === 0 ? (
-          <FavoritesEmpty />
+        ) : !hasLoaded ? null : venues.length === 0 ? (
+          <FavoritesEmpty onExplore={() => router.push("/venues")} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {venues.map((venue) => (
@@ -87,7 +135,7 @@ function FavoritesContent() {
                 key={venue.id}
                 venue={venue}
                 onRemove={handleRemove}
-                isRemoving={removingId === venue.id}
+                isRemoving={removingIds.has(venue.id)}
               />
             ))}
           </div>
@@ -121,7 +169,7 @@ function FavoriteVenueCard({
       : null;
 
   return (
-    <Card className="overflow-hidden h-full">
+    <Card className="h-full min-w-0 overflow-hidden">
       <Card.Content className="p-0 flex flex-col h-full">
         {/* Cover image */}
         <div className="relative h-40 bg-gradient-to-br from-accent/20 via-accent/10 to-surface-secondary overflow-hidden">
@@ -187,19 +235,22 @@ function FavoriteVenueCard({
             </div>
           )}
 
-          <div className="flex gap-2 mt-auto pt-3">
-            <Link href={`/venues/${venue.id}`} className="flex-1">
-              <Button variant="secondary" size="sm" className="w-full">
-                Xem sân
-              </Button>
+          <div className="mt-auto flex min-w-0 gap-2 pt-3">
+            <Link
+              href={`/venues/${venue.id}`}
+              className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-xl bg-[var(--surface-secondary)] px-3 text-sm font-semibold text-foreground"
+            >
+              Xem sân
             </Link>
             <Button
+              isIconOnly
+              aria-label={isRemoving ? `Đang xóa ${venue.name} khỏi yêu thích` : `Xóa ${venue.name} khỏi yêu thích`}
               variant="secondary"
-              size="sm"
+              className="min-h-11 min-w-11 shrink-0"
               isDisabled={isRemoving}
               onPress={() => onRemove(venue.id)}
             >
-              <TrashBin className="w-3.5 h-3.5" />
+              {isRemoving ? <Spinner size="sm" /> : <TrashBin className="w-3.5 h-3.5" />}
             </Button>
           </div>
         </div>
@@ -237,7 +288,7 @@ function FavoritesSkeleton() {
 /* ------------------------------------------------------------------ */
 /* EMPTY STATE                                                         */
 /* ------------------------------------------------------------------ */
-function FavoritesEmpty() {
+function FavoritesEmpty({ onExplore }: { onExplore: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
       <Star className="w-16 h-16 text-muted/30 mb-6" />
@@ -247,12 +298,10 @@ function FavoritesEmpty() {
       <p className="text-sm text-muted max-w-md mb-6">
         Khám phá và lưu lại những sân thể thao yêu thích của bạn
       </p>
-      <Link href="/venues">
-        <Button variant="primary">
-          <MapPin className="w-4 h-4 mr-1" />
-          Khám phá sân bãi
-        </Button>
-      </Link>
+      <Button variant="primary" onPress={onExplore}>
+        <MapPin className="w-4 h-4 mr-1" />
+        Khám phá sân bãi
+      </Button>
     </div>
   );
 }

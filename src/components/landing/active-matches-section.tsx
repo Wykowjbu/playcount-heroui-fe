@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Link } from "@heroui/react";
+import { Link } from "@heroui/react";
+import { buttonVariants } from "@heroui/styles/components/button";
 import { ChevronRight } from "@gravity-ui/icons";
 import { MatchCard } from "./match-card";
 import type { DiscoveryMatch } from "@/lib/types/discovery";
@@ -41,10 +42,8 @@ export function ActiveMatchesSection({ matches, isLoading }: Props) {
             <h2 className="text-xl md:text-2xl font-bold">Kèo đấu đang tuyển</h2>
             <p className="text-muted text-sm mt-1">Các kèo phù hợp với môn bạn chơi</p>
           </div>
-          <Link href="/matches">
-            <Button variant="outline" size="sm">
-              Xem tất cả <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
+          <Link href="/matches" className={buttonVariants({ variant: "outline", size: "sm", className: "min-h-11" })}>
+            Xem tất cả <ChevronRight className="w-4 h-4 ml-1" />
           </Link>
         </div>
 

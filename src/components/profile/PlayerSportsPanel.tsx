@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Button,
   Chip,
@@ -45,6 +45,10 @@ export function PlayerSportsPanel() {
   const [editSkill, setEditSkill] = useState<string>("");
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [deleteSport, setDeleteSport] = useState<PlayerSportResponseDto | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteLockRef = useRef(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -114,13 +118,20 @@ export function PlayerSportsPanel() {
     }
   }
 
-  async function handleDelete(sportId: number) {
-    if (!confirm("Xóa môn thể thao này?")) return;
+  async function handleDelete() {
+    if (!deleteSport || deleteLockRef.current) return;
+    deleteLockRef.current = true;
+    setDeleteSaving(true);
+    setDeleteError(null);
     try {
-      await deleteMySport(sportId);
-      await loadData();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Xóa thất bại");
+      await deleteMySport(deleteSport.sportId);
+      setSports((items) => items.filter((item) => item.sportId !== deleteSport.sportId));
+      setDeleteSport(null);
+    } catch {
+      setDeleteError("Không thể xóa môn thể thao");
+    } finally {
+      deleteLockRef.current = false;
+      setDeleteSaving(false);
     }
   }
 
@@ -213,7 +224,10 @@ export function PlayerSportsPanel() {
                   size="sm"
                   aria-label={`Xóa ${sport.sportName}`}
                   className="text-danger"
-                  onPress={() => handleDelete(sport.sportId)}
+                  onPress={() => {
+                    setDeleteSport(sport);
+                    setDeleteError(null);
+                  }}
                 >
                   <TrashBin className="w-4 h-4" />
                 </Button>
@@ -302,6 +316,33 @@ export function PlayerSportsPanel() {
                   onPress={handleAdd}
                 >
                   {addSaving ? "Đang thêm..." : "Thêm"}
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+
+      <Modal>
+        <Modal.Backdrop isOpen={!!deleteSport} onOpenChange={(open) => { if (!open && !deleteLockRef.current) setDeleteSport(null); }}>
+          <Modal.Container size="sm" placement="center">
+            <Modal.Dialog>
+              <Modal.CloseTrigger />
+              <Modal.Header><Modal.Heading>Xóa môn thể thao</Modal.Heading></Modal.Header>
+              <Modal.Body>
+                {deleteError && (
+                  <Alert status="danger">
+                    <Alert.Indicator />
+                    <Alert.Content><Alert.Description>{deleteError}</Alert.Description></Alert.Content>
+                  </Alert>
+                )}
+                <p className="text-sm text-muted">Bạn có chắc muốn xóa môn thể thao này?</p>
+                <strong className="text-foreground">{deleteSport?.sportName}</strong>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" isDisabled={deleteSaving} onPress={() => setDeleteSport(null)}>Hủy</Button>
+                <Button variant="danger" isDisabled={deleteSaving} isPending={deleteSaving} onPress={() => void handleDelete()}>
+                  {deleteSaving ? "Đang xóa..." : deleteError ? "Thử xóa lại" : "Xóa"}
                 </Button>
               </Modal.Footer>
             </Modal.Dialog>

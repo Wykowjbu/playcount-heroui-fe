@@ -27,20 +27,16 @@ export async function getBookingById(id: number): Promise<BookingResponseDto> {
 
 export async function getMyBookings(
   query: BookingQueryDto = {},
-): Promise<{ items: BookingResponseDto[]; totalCount: number; totalPages: number }> {
+): Promise<BookingResponseDto[]> {
   const qs = buildQuery({
-    Status: query.status,
-    From: query.from,
-    To: query.to,
-    Page: query.page ?? 1,
-    PageSize: query.pageSize ?? 10,
+    status: query.status,
+    from: query.from,
+    to: query.to,
+    page: query.page ?? 1,
+    pageSize: query.pageSize ?? 10,
   });
-  const body = await apiFetchPaged<BookingResponseDto[]>(`/Bookings/me${qs}`);
-  return {
-    items: body.data ?? [],
-    totalCount: body.totalCount,
-    totalPages: body.totalPages,
-  };
+  const body = await apiFetch<BookingResponseDto[]>(`/Bookings/me${qs}`);
+  return body.data ?? [];
 }
 
 export async function getVenueBookings(

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Button, Card, Alert, Skeleton, Separator, TextArea, Label, Form, FieldError } from "@heroui/react";
+import { Button, Card, Alert, Skeleton, Separator, TextArea, Label, Form } from "@heroui/react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { PlayerGuard } from "@/lib/auth/guards";
 import { checkAvailability, createBooking } from "@/lib/api/bookings";
-import { createPayOsPayment } from "@/lib/api/payments";
+import { createPayOsPayment, getTrustedPayOsCheckoutUrl } from "@/lib/api/payments";
 import { getVenueById, getVenueCourts } from "@/lib/api/discovery";
 import type { VenueResponseDto, CourtDto } from "@/lib/types/api";
 import { formatVnd, formatDate } from "@/lib/utils/format";
@@ -15,6 +15,35 @@ import ChevronLeft from "@gravity-ui/icons/ChevronLeft";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Clock from "@gravity-ui/icons/Clock";
 import Wallet from "@gravity-ui/icons/Wallet";
+import { ApiError } from "@/lib/api/client";
+import { toLocalIsoWithOffset } from "@/lib/utils/player-flow";
+
+function resolveBookingWindow(
+  durationValue: string | null,
+  date: string,
+  time: string,
+  exactStartAt: string | null,
+  exactEndAt: string | null,
+) {
+  const duration = Number(durationValue);
+  if (!Number.isInteger(duration) || duration < 60 || duration % 30 !== 0) return null;
+
+  if (exactStartAt || exactEndAt) {
+    if (!exactStartAt || !exactEndAt) return null;
+    const start = Date.parse(exactStartAt);
+    const end = Date.parse(exactEndAt);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start !== duration * 60_000) return null;
+    return { startAt: exactStartAt, endAt: exactEndAt, duration };
+  }
+
+  try {
+    const startAt = toLocalIsoWithOffset(date, time, -new Date().getTimezoneOffset());
+    const start = Date.parse(startAt);
+    return { startAt, endAt: new Date(start + duration * 60_000).toISOString(), duration };
+  } catch {
+    return null;
+  }
+}
 
 export function CheckoutPage() {
   return (
@@ -32,24 +61,39 @@ function CheckoutContent() {
   const courtId = Number(searchParams.get("court")) || 0;
   const date = searchParams.get("date") ?? "";
   const time = searchParams.get("time") ?? "";
-  const duration = Number(searchParams.get("duration")) || 60;
+  const bookingWindow = useMemo(() => resolveBookingWindow(
+    searchParams.get("duration"),
+    date,
+    time,
+    searchParams.get("startAt"),
+    searchParams.get("endAt"),
+  ), [searchParams, date, time]);
+  const duration = bookingWindow?.duration ?? Number(searchParams.get("duration"));
+  const invalidParams = !venueId || !courtId || !date || !time || !bookingWindow;
 
   const [venue, setVenue] = useState<VenueResponseDto | null>(null);
   const [courts, setCourts] = useState<CourtDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
+  const [loadKey, setLoadKey] = useState(0);
   const [notes, setNotes] = useState("");
   const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
+  const submitLock = useRef(false);
 
   useEffect(() => {
-    if (!venueId || !courtId || !date || !time) {
-      setError("Thiếu thông tin đặt sân. Vui lòng quay lại và chọn lại.");
+    if (invalidParams) {
+      setError("Thông tin đặt sân không hợp lệ");
+      setConflict(false);
       setLoading(false);
       return;
     }
 
     const loadData = async () => {
+      setError(null);
+      setConflict(false);
+      setLoading(true);
       try {
         const [v, c] = await Promise.all([
           getVenueById(venueId),
@@ -57,52 +101,73 @@ function CheckoutContent() {
         ]);
         setVenue(v);
         setCourts(c);
-        const start = new Date(`${date}T${time}:00`);
-        const end = new Date(start.getTime() + duration * 60_000);
-        const availability = await checkAvailability(courtId, start.toISOString(), end.toISOString());
-        if (!availability.isAvailable) throw new Error(availability.reason ?? "Khung giờ này không còn trống.");
+        const availability = await checkAvailability(courtId, bookingWindow.startAt, bookingWindow.endAt);
+        if (!availability.isAvailable) {
+          setConflict(true);
+          throw new ApiError(409, availability.reason ?? "Khung giờ này không còn trống.");
+        }
         setEstimatedPrice(availability.estimatedPrice);
       } catch (err: unknown) {
+        if (err instanceof ApiError && err.status === 409) setConflict(true);
         setError(err instanceof Error ? err.message : "Không thể tải thông tin sân");
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, [venueId, courtId, date, time]);
+  }, [venueId, courtId, date, time, bookingWindow, invalidParams, loadKey]);
 
   const court = useMemo(() => courts.find((c) => c.id === courtId), [courts, courtId]);
 
   const handleSubmit = async () => {
+    if (submitLock.current) return;
+    submitLock.current = true;
     setSubmitting(true);
     setError(null);
+    setConflict(false);
+    if (!bookingWindow) {
+      setError("Thông tin đặt sân không hợp lệ");
+      setSubmitting(false);
+      submitLock.current = false;
+      return;
+    }
+    let createdBookingId: number | null = null;
     try {
-      const start = new Date(`${date}T${time}:00`);
-      const end = new Date(start.getTime() + duration * 60_000);
-      const availability = await checkAvailability(courtId, start.toISOString(), end.toISOString());
+      const availability = await checkAvailability(courtId, bookingWindow.startAt, bookingWindow.endAt);
       if (!availability.isAvailable) {
-        throw new Error(availability.reason ?? "Khung giờ này không còn trống.");
+        throw new ApiError(409, availability.reason ?? "Khung giờ này không còn trống.");
       }
       setEstimatedPrice(availability.estimatedPrice);
 
       const booking = await createBooking({
         courtId,
-        startAt: start.toISOString(),
-        endAt: end.toISOString(),
+        startAt: bookingWindow.startAt,
+        endAt: bookingWindow.endAt,
         note: notes || undefined,
       });
+      createdBookingId = booking.id;
 
       // Initiate PayOS payment
       const payRes = await createPayOsPayment(booking.id);
-      if (payRes.checkoutUrl) {
-        window.location.assign(payRes.checkoutUrl);
+      const checkoutUrl = getTrustedPayOsCheckoutUrl(payRes.checkoutUrl);
+      if (checkoutUrl) {
+        window.location.assign(checkoutUrl);
       } else {
         router.push(`/bookings/${booking.id}`);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Đặt sân thất bại. Vui lòng thử lại.");
+      if (createdBookingId !== null) {
+        router.push(`/bookings/${createdBookingId}`);
+        return;
+      }
+      const lostSlot = err instanceof ApiError && err.status === 409;
+      if (lostSlot) setConflict(true);
+      setError(lostSlot
+        ? "Khung giờ này không còn trống vì vừa được người khác đặt. Ghi chú của bạn vẫn được giữ lại."
+        : err instanceof Error ? err.message : "Đặt sân thất bại. Vui lòng thử lại.");
     } finally {
       setSubmitting(false);
+      submitLock.current = false;
     }
   };
 
@@ -139,6 +204,25 @@ function CheckoutContent() {
             <Alert.Indicator />
             <Alert.Content>
               <Alert.Title>{error}</Alert.Title>
+              <Alert.Description className="mt-2 flex flex-wrap gap-2">
+                {conflict ? (
+                  <Link
+                    className="inline-flex min-h-11 items-center font-semibold underline"
+                    href={`/venues/${venueId}?court=${courtId}&date=${encodeURIComponent(date)}`}
+                  >
+                    Chọn khung giờ khác
+                  </Link>
+                ) : invalidParams ? (
+                  <Link
+                    className="inline-flex min-h-11 items-center font-semibold underline"
+                    href={`/venues/${venueId}?court=${courtId}&date=${encodeURIComponent(date)}`}
+                  >
+                    Chọn lại khung giờ
+                  </Link>
+                ) : (
+                  <Button className="min-h-11" variant="secondary" onPress={() => setLoadKey((key) => key + 1)}>Thử lại</Button>
+                )}
+              </Alert.Description>
             </Alert.Content>
           </Alert>
         )}
@@ -167,15 +251,18 @@ function CheckoutContent() {
 
             {/* Notes */}
             <Form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-              <TextArea
-                className="w-full"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ghi chú cho chủ sân (tuỳ chọn)"
-                rows={3}
-              >
-                <Label>Ghi chú</Label>
-              </TextArea>
+              <div className="flex w-full flex-col gap-2">
+                <Label htmlFor="booking-note">Ghi chú</Label>
+                <TextArea
+                  aria-label="Ghi chú"
+                  className="w-full"
+                  id="booking-note"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ghi chú cho chủ sân (tuỳ chọn)"
+                  rows={3}
+                />
+              </div>
             </Form>
 
             {/* Price Breakdown */}
@@ -199,11 +286,14 @@ function CheckoutContent() {
             </Card>
 
             {/* Submit */}
+            <p className="rounded-xl bg-[var(--surface-secondary)] p-3 text-sm text-[var(--muted)]">
+              Sau khi xác nhận, khung giờ được giữ chỗ trong 15 phút để bạn hoàn tất thanh toán.
+            </p>
             <Button
               className="w-full"
               size="lg"
               variant="primary"
-              isDisabled={submitting || !!error}
+              isDisabled={submitting || conflict}
               onPress={handleSubmit}
             >
               <Wallet className="size-4 mr-2" />

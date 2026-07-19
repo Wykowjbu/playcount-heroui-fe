@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { getMyProfile } from "@/lib/api/profile";
 import type { UserProfileResponseDto } from "@/lib/types/profile";
 import { Alert, Card, CardContent } from "@heroui/react";
@@ -78,12 +79,12 @@ export function ProfilePageShell({ role }: Props) {
       </div>
 
       {/* Right: Profile Card - flex-1, max ~760px */}
-      <div className="flex-1 min-w-0 lg:max-w-[760px]">
+      <div className="flex-1 min-w-0 max-w-full lg:max-w-[760px]">
         <Card className="!h-auto !min-h-0 border border-border bg-[var(--surface)]">
           <CardContent className="p-5 sm:p-6 lg:p-7">
-          <Tabs selectedKey={selectedTab} onSelectionChange={(key) => setSelectedTab(key as string)}>
-            <Tabs.ListContainer>
-              <Tabs.List aria-label="Hồ sơ">
+          <Tabs className="min-w-0 max-w-full" selectedKey={selectedTab} onSelectionChange={(key) => setSelectedTab(key as string)}>
+            <Tabs.ListContainer className="max-w-full overflow-x-auto">
+              <Tabs.List aria-label="Hồ sơ" className="w-max min-w-full">
                 {tabs.map((tab) => (
                   <Tabs.Tab key={tab.id} id={tab.id}>
                     <span className="flex items-center gap-1.5">
@@ -121,11 +122,17 @@ export function ProfilePageShell({ role }: Props) {
                   >
                     <div className="flex items-start gap-3">
                       <Lock className="w-5 h-5 text-muted shrink-0 mt-0.5" />
-                      <div>
+                      <div className="min-w-0">
                         <h3 className="text-sm font-medium text-foreground">Đổi mật khẩu</h3>
                         <p className="text-sm text-muted mt-1">
-                          Tính năng đổi mật khẩu sẽ được xử lý ở phần cài đặt bảo mật.
+                          Quản lý mật khẩu và các tùy chọn bảo mật trong phần cài đặt.
                         </p>
+                        <Link
+                          href="/player/settings"
+                          className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-foreground)]"
+                        >
+                          Đi đến cài đặt bảo mật
+                        </Link>
                       </div>
                     </div>
                   </div>

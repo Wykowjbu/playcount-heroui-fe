@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,22 +18,24 @@ import ChevronLeft from "@gravity-ui/icons/ChevronLeft";
 import CalendarIcon from "@gravity-ui/icons/Calendar";
 import type { Key } from "@heroui/react";
 import { VenueMapPicker } from "./venue-map-picker";
+import { toLocalIsoAtWallTime } from "@/lib/utils/player-flow";
 
-export function CreateMatchPage({ embedded = false }: { embedded?: boolean }) {
+export function CreateMatchPage({ embedded = false, onSubmittingChange }: { embedded?: boolean; onSubmittingChange?: (submitting: boolean) => void }) {
   return (
     <PlayerGuard>
-      <CreateMatchContent embedded={embedded} />
+      <CreateMatchContent embedded={embedded} onSubmittingChange={onSubmittingChange} />
     </PlayerGuard>
   );
 }
 
-function CreateMatchContent({ embedded }: { embedded: boolean }) {
+function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolean; onSubmittingChange?: (submitting: boolean) => void }) {
   const router = useRouter();
 
   const [sports, setSports] = useState<SportDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form state
@@ -51,6 +53,21 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
 
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const formId = embedded ? "create-match-form" : "create-match-page-form";
+
+  const handleSportChange = (nextSportId: Key | null) => {
+    setCourtId(null);
+    setLocationDesc("");
+    setSelectedDate(null);
+    setStartTime(null);
+    setEndTime(null);
+    setErrors((current) => {
+      const next = { ...current };
+      for (const field of ["sportId", "locationDesc", "date", "startTime", "endTime"]) delete next[field];
+      return next;
+    });
+    setSportId(nextSportId);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -69,22 +86,43 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
     if (startTime && endTime && startTime.compare(endTime) >= 0) {
       e.endTime = "Giờ kết thúc phải sau giờ bắt đầu";
     }
-    if (maxParticipants < 2) e.maxParticipants = "Cần ít nhất 2 người";
-    if (!locationDesc.trim()) e.locationDesc = "Vui lòng nhập địa điểm";
+    if (maxParticipants < 2 || maxParticipants > 100) e.maxParticipants = "Số người phải từ 2 đến 100";
+    if (!courtId && !locationDesc.trim()) e.locationDesc = "Vui lòng nhập địa điểm";
+    if (skillMin != null && skillMax != null && Number(skillMin) > Number(skillMax)) {
+      e.skillMax = "Trình độ tối đa phải bằng hoặc cao hơn trình độ tối thiểu";
+    }
+    if (selectedDate && startTime) {
+      try {
+        const startAt = toLocalIsoAtWallTime(selectedDate.toString(), `${String(startTime.hour).padStart(2, "0")}:${String(startTime.minute).padStart(2, "0")}`);
+        if (Date.parse(startAt) <= Date.now()) e.startTime = "Thời gian bắt đầu phải ở tương lai";
+      } catch {
+        e.startTime = "Giờ bắt đầu không tồn tại trong múi giờ hiện tại";
+      }
+    }
+    if (selectedDate && endTime) {
+      try {
+        toLocalIsoAtWallTime(selectedDate.toString(), `${String(endTime.hour).padStart(2, "0")}:${String(endTime.minute).padStart(2, "0")}`);
+      } catch {
+        e.endTime = "Giờ kết thúc không tồn tại trong múi giờ hiện tại";
+      }
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     if (!validate()) return;
 
+    submittingRef.current = true;
     setSubmitting(true);
+    onSubmittingChange?.(true);
     setError(null);
     try {
-      const pad = (n: number) => String(n).padStart(2, "0");
-      const startAt = `${selectedDate!.toString()}T${pad(startTime!.hour)}:${pad(startTime!.minute)}:00`;
-      const endAt = `${selectedDate!.toString()}T${pad(endTime!.hour)}:${pad(endTime!.minute)}:00`;
+      const time = (value: Time) => `${String(value.hour).padStart(2, "0")}:${String(value.minute).padStart(2, "0")}`;
+      const startAt = toLocalIsoAtWallTime(selectedDate!.toString(), time(startTime!));
+      const endAt = toLocalIsoAtWallTime(selectedDate!.toString(), time(endTime!));
 
       const match = await createMatch({
         sportId: Number(sportId),
@@ -103,7 +141,9 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Tạo kèo thất bại. Vui lòng thử lại.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
+      onSubmittingChange?.(false);
     }
   };
 
@@ -139,10 +179,11 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
             <Alert.Content>
               <Alert.Title>{error}</Alert.Title>
             </Alert.Content>
+            <Button type="submit" form={formId} variant="danger" size="sm">Thử lại</Button>
           </Alert>
         )}
 
-        <Form id={embedded ? "create-match-form" : undefined} onSubmit={handleSubmit} className="space-y-6">
+        <Form id={formId} validationBehavior="aria" onSubmit={handleSubmit} className="space-y-6">
           <Card variant={embedded ? "transparent" : "default"}>
             <Card.Content className={embedded ? "space-y-5 p-0" : "space-y-5 p-5"}>
               {/* Sport */}
@@ -150,7 +191,7 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
                 className="w-full"
                 placeholder="Chọn môn thể thao"
                 value={sportId}
-                onChange={setSportId}
+                onChange={handleSportChange}
                 isInvalid={!!errors.sportId}
               >
                 <Label isRequired>Môn thể thao</Label>
@@ -167,9 +208,8 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
                     ))}
                   </ListBox>
                 </Select.Popover>
+                {errors.sportId && <FieldError>{errors.sportId}</FieldError>}
               </Select>
-
-              {errors.sportId && <p className="text-sm text-[var(--danger)]">{errors.sportId}</p>}
 
               {/* Location */}
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -240,8 +280,8 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
                     </Calendar.Grid>
                   </Calendar>
                 </DatePicker.Popover>
+                {errors.date && <FieldError>{errors.date}</FieldError>}
               </DatePicker>
-              {errors.date && <p className="text-sm text-[var(--danger)]">{errors.date}</p>}
 
               {/* Start/End Time */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -258,8 +298,8 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
                       {(segment) => <TimeField.Segment segment={segment} />}
                     </TimeField.Input>
                   </TimeField.Group>
+                  {errors.startTime && <FieldError>{errors.startTime}</FieldError>}
                 </TimeField>
-                {errors.startTime && <p className="text-sm text-[var(--danger)]">{errors.startTime}</p>}
 
                 <TimeField
                   className="w-full"
@@ -274,8 +314,8 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
                       {(segment) => <TimeField.Segment segment={segment} />}
                     </TimeField.Input>
                   </TimeField.Group>
+                  {errors.endTime && <FieldError>{errors.endTime}</FieldError>}
                 </TimeField>
-                {errors.endTime && <p className="text-sm text-[var(--danger)]">{errors.endTime}</p>}
               </div></>}
 
               {/* Max Participants */}
@@ -284,7 +324,7 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
                 value={maxParticipants}
                 onChange={setMaxParticipants}
                 minValue={2}
-                maxValue={50}
+                maxValue={100}
                 isInvalid={!!errors.maxParticipants}
               >
                 <Label isRequired>Số người tối đa</Label>
@@ -319,6 +359,7 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
                   placeholder="Tối đa"
                   value={skillMax}
                   onChange={setSkillMax}
+                  isInvalid={!!errors.skillMax}
                 >
                   <Label>Trình độ tối đa</Label>
                   <Select.Trigger>
@@ -332,6 +373,7 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
                       <ListBox.Item id="2" textValue="Nâng cao">Nâng cao<ListBox.ItemIndicator /></ListBox.Item>
                     </ListBox>
                   </Select.Popover>
+                  {errors.skillMax && <FieldError>{errors.skillMax}</FieldError>}
                 </Select>
               </div>
 
@@ -346,14 +388,10 @@ function CreateMatchContent({ embedded }: { embedded: boolean }) {
               </TextField>
 
               {/* Description */}
-              <TextArea
-                className="w-full"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-              >
+              <TextField className="w-full" value={description} onChange={setDescription}>
                 <Label>Mô tả (tuỳ chọn)</Label>
-              </TextArea>
+                <TextArea rows={3} />
+              </TextField>
             </Card.Content>
           </Card>
 

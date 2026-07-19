@@ -1,22 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { Button, Card, Chip, Alert, Skeleton, Separator, FieldError, Form, Label, ListBox, Modal, Select, Table, TextArea } from "@heroui/react";
+import Image from "next/image";
+import { Button, Card, Chip, Alert, Skeleton, Separator, FieldError, Form, Label, Link as HeroUILink, ListBox, Modal, Select, Table, TextArea } from "@heroui/react";
+import { buttonVariants } from "@heroui/styles/components/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AuthGuard } from "@/lib/auth/guards";
 import { getBookingById, cancelBooking, confirmBooking, rejectBooking, completeBooking } from "@/lib/api/bookings";
-import { createPayOsPayment, getBookingPayments } from "@/lib/api/payments";
-import { createReview, getMyReviews } from "@/lib/api/reviews";
+import { createPayOsPayment, getBookingPayments, getTrustedPayOsCheckoutUrl } from "@/lib/api/payments";
+import { addReviewImage, createReview, deleteReviewImage, getMyReviews } from "@/lib/api/reviews";
+import { uploadFile, validateImageFile } from "@/lib/api/upload";
 import { useAuth } from "@/lib/auth-context";
-import type { BookingResponseDto, PaymentDto, ReviewResponseDto } from "@/lib/types/api";
+import type { BookingResponseDto, PaymentDto, ReviewImageDto, ReviewResponseDto } from "@/lib/types/api";
 import { getStatusConfig, isTerminalBookingStatus } from "@/lib/utils/status-labels";
 import { formatDate, formatDateTime, formatTime, formatVnd } from "@/lib/utils/format";
 import ChevronLeft from "@gravity-ui/icons/ChevronLeft";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Clock from "@gravity-ui/icons/Clock";
-import Wallet from "@gravity-ui/icons/Wallet";
 import Calendar from "@gravity-ui/icons/Calendar";
+import TrashBin from "@gravity-ui/icons/TrashBin";
+
+type LocalReviewImage = { file: File; preview: string; displayOrder: number; uploadedUrl?: string; error?: string };
 
 /** Handle both "HH:mm:ss" and full datetime strings */
 function fmtTime(s: string | null | undefined): string {
@@ -46,9 +51,26 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [review, setReview] = useState<ReviewResponseDto | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [localImages, setLocalImages] = useState<LocalReviewImage[]>([]);
+  const localImagesRef = useRef(localImages);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewNotice, setReviewNotice] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ReviewImageDto | null>(null);
+  const actionLock = useRef(false);
+  const statusRefreshLock = useRef(false);
+  const mounted = useRef(true);
+  const bookingIdRef = useRef(bookingId);
+  const fetchGenerationRef = useRef(0);
+  const [statusRefreshError, setStatusRefreshError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (showLoading = true) => {
+    const requestedId = bookingId;
+    const generation = ++fetchGenerationRef.current;
+    if (showLoading) setLoading(true);
     setError(null);
     try {
       const [b, p, reviews] = await Promise.all([
@@ -56,65 +78,230 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
         getBookingPayments(bookingId).catch(() => []),
         user?.role === "player" ? getMyReviews().catch(() => []) : Promise.resolve([]),
       ]);
+      if (!mounted.current || bookingIdRef.current !== requestedId || generation !== fetchGenerationRef.current) return;
       setBooking(b);
       setPayments(p);
-      setReview(reviews.find((item) => item.bookingId === bookingId) ?? null);
+      setReview(reviews.find((item) => item.bookingId === requestedId) ?? null);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Không thể tải thông tin đặt sân");
+      if (mounted.current && bookingIdRef.current === requestedId && generation === fetchGenerationRef.current) {
+        setError(err instanceof Error ? err.message : "Không thể tải thông tin đặt sân");
+      }
     } finally {
-      setLoading(false);
+      if (mounted.current && bookingIdRef.current === requestedId && generation === fetchGenerationRef.current) setLoading(false);
     }
-  };
+  }, [bookingId, user]);
 
   useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    bookingIdRef.current = bookingId;
+    fetchGenerationRef.current += 1;
+    actionLock.current = false;
+    statusRefreshLock.current = false;
+    setBooking(null);
+    setPayments([]);
+    setLoading(true);
+    setError(null);
+    setActionLoading(false);
+    setActionError(null);
+    setReview(null);
+    setReviewOpen(false);
+    setCancelOpen(false);
+    setCancelReason("");
+    localImagesRef.current.forEach(({ preview }) => URL.revokeObjectURL(preview));
+    setLocalImages([]);
+    setReviewError(null);
+    setReviewNotice(null);
+    setDeleteTarget(null);
+    setStatusRefreshError(null);
+    setNow(Date.now());
   }, [bookingId]);
 
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      fetchGenerationRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    localImagesRef.current = localImages;
+  }, [localImages]);
+
+  useEffect(() => () => {
+    localImagesRef.current.forEach(({ preview }) => URL.revokeObjectURL(preview));
+  }, []);
+
+  const holdDeadline = booking?.status === "Pending" ? Date.parse(booking.createdAt) + 15 * 60_000 : null;
+  const deadlineElapsed = holdDeadline !== null && now >= holdDeadline;
+  const refreshBookingStatus = useCallback(async () => {
+    if (statusRefreshLock.current || document.visibilityState !== "visible") return;
+    statusRefreshLock.current = true;
+    const requestedId = bookingId;
+    try {
+      const latest = await getBookingById(requestedId);
+      if (mounted.current && bookingIdRef.current === requestedId) {
+        setBooking(latest);
+        setStatusRefreshError(null);
+      }
+    } catch (err) {
+      if (mounted.current && bookingIdRef.current === requestedId) {
+        setStatusRefreshError(err instanceof Error ? err.message : "Không thể cập nhật trạng thái đặt sân");
+      }
+    } finally {
+      statusRefreshLock.current = false;
+    }
+  }, [bookingId]);
+
+  useEffect(() => {
+    if (!holdDeadline) return;
+    if (deadlineElapsed) {
+      const poll = () => { if (document.visibilityState === "visible") void refreshBookingStatus(); };
+      poll();
+      const timer = window.setInterval(poll, 5_000);
+      document.addEventListener("visibilitychange", poll);
+      return () => {
+        window.clearInterval(timer);
+        document.removeEventListener("visibilitychange", poll);
+      };
+    }
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    const refresh = window.setTimeout(() => {
+      setNow(Date.now());
+    }, Math.max(0, holdDeadline - Date.now()));
+    return () => { window.clearInterval(timer); window.clearTimeout(refresh); };
+  }, [deadlineElapsed, holdDeadline, refreshBookingStatus]);
+
   const handleAction = async (action: () => Promise<void>) => {
+    if (actionLock.current) return;
+    actionLock.current = true;
     setActionLoading(true);
+    setActionError(null);
+    const requestedId = bookingId;
     try {
       await action();
-      await fetchData();
-    } catch {
-      // silent
+      if (mounted.current && bookingIdRef.current === requestedId) await fetchData(false);
+    } catch (err) {
+      if (mounted.current && bookingIdRef.current === requestedId) {
+        setActionError(err instanceof Error ? err.message : "Không thể thực hiện thao tác");
+      }
     } finally {
-      setActionLoading(false);
+      actionLock.current = false;
+      if (mounted.current && bookingIdRef.current === requestedId) setActionLoading(false);
     }
   };
 
   const handlePay = async () => {
+    if (actionLock.current || (holdDeadline !== null && Date.now() >= holdDeadline)) return;
+    actionLock.current = true;
     setActionLoading(true);
+    setActionError(null);
     try {
       const res = await createPayOsPayment(bookingId);
-      if (res.checkoutUrl) {
-        window.location.href = res.checkoutUrl;
+      const checkoutUrl = getTrustedPayOsCheckoutUrl(res.checkoutUrl);
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+      } else {
+        throw new Error("Liên kết thanh toán không hợp lệ");
       }
-    } catch {
-      // silent
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Không thể tạo liên kết thanh toán");
     } finally {
+      actionLock.current = false;
       setActionLoading(false);
     }
   };
 
   async function submitReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (actionLock.current) return;
+    actionLock.current = true;
     const data = new FormData(event.currentTarget);
     setActionLoading(true);
+    setReviewError(null);
     try {
-      const created = await createReview({
-        bookingId,
-        rating: Number(data.get("rating")),
-        reviewText: String(data.get("reviewText") ?? "") || undefined,
-      });
-      setReview(created);
+      const uploaded = await Promise.all(localImages.map(async (image) => {
+        if (image.uploadedUrl) return image;
+        try {
+          const result = await uploadFile(image.file, "reviews");
+          return { ...image, uploadedUrl: result.url, error: undefined };
+        } catch (err) {
+          return { ...image, error: err instanceof Error ? err.message : "Tải ảnh thất bại" };
+        }
+      }));
+      setLocalImages(uploaded);
+      const failedUploads = uploaded.filter(({ uploadedUrl }) => !uploadedUrl);
+      if (failedUploads.length) throw new Error(`Chưa tải được: ${failedUploads.map(({ file }) => file.name).join(", ")}`);
+      const savedReview = review ?? await createReview({
+          bookingId,
+          rating: Number(data.get("rating")),
+          reviewText: String(data.get("reviewText") ?? "") || undefined,
+        });
+      setReview(savedReview);
+      const persistedImages = [...(savedReview.images ?? [])];
+      const attached = new Set(persistedImages.map(({ imageUrl }) => imageUrl));
+      const failedAdds: LocalReviewImage[] = [];
+      for (const image of uploaded) {
+        if (attached.has(image.uploadedUrl!)) continue;
+        try {
+          persistedImages.push(await addReviewImage(savedReview.id, { imageUrl: image.uploadedUrl!, displayOrder: image.displayOrder }));
+        } catch (err) {
+          failedAdds.push({ ...image, error: err instanceof Error ? err.message : "Không thể lưu ảnh" });
+        }
+      }
+      setReview({ ...savedReview, images: persistedImages });
+      uploaded.filter((image) => !failedAdds.some(({ preview }) => preview === image.preview)).forEach(({ preview }) => URL.revokeObjectURL(preview));
+      setLocalImages(failedAdds);
+      try {
+        const reviews = await getMyReviews();
+        setReview(reviews.find((item) => item.bookingId === bookingId) ?? { ...savedReview, images: persistedImages });
+      } catch {
+        if (!failedAdds.length) setReviewNotice("Đánh giá đã được lưu nhưng chưa thể làm mới dữ liệu");
+      }
+      if (failedAdds.length) throw new Error(`Chưa lưu được: ${failedAdds.map(({ file }) => file.name).join(", ")}`);
+      setLocalImages([]);
       setReviewOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể gửi đánh giá");
+      setReviewError(err instanceof Error ? err.message : "Không thể gửi đánh giá");
     } finally {
+      actionLock.current = false;
       setActionLoading(false);
     }
   }
+
+  const addLocalImages = (files: FileList | null) => {
+    if (!files) return;
+    const accepted: LocalReviewImage[] = [];
+    const errors: string[] = [];
+    const capacity = Math.max(0, 5 - (review?.images.length ?? 0) - localImages.length);
+    let displayOrder = Math.max(-1, ...(review?.images.map((image) => image.displayOrder) ?? []), ...localImages.map((image) => image.displayOrder)) + 1;
+    Array.from(files).forEach((file) => {
+      const validation = validateImageFile(file);
+      if (validation) errors.push(`${file.name}: ${validation}`);
+      else if (accepted.length >= capacity) errors.push("Mỗi đánh giá tối đa 5 ảnh");
+      else accepted.push({ file, preview: URL.createObjectURL(file), displayOrder: displayOrder++ });
+    });
+    setLocalImages((images) => [...images, ...accepted]);
+    setReviewError(errors.length ? errors.join("; ") : null);
+  };
+
+  const removeLocalImage = (preview: string) => {
+    URL.revokeObjectURL(preview);
+    setLocalImages((images) => images.filter((image) => image.preview !== preview));
+  };
+
+  const confirmDeleteImage = async () => {
+    if (!deleteTarget || !review || actionLock.current) return;
+    const target = deleteTarget;
+    await handleAction(async () => {
+      await deleteReviewImage(review.id, target.id);
+      setReview({ ...review, images: review.images.filter(({ id }) => id !== target.id) });
+      setDeleteTarget(null);
+    });
+  };
 
   if (loading) {
     return (
@@ -139,12 +326,10 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
               <Alert.Title>{error ?? "Không tìm thấy đặt sân"}</Alert.Title>
             </Alert.Content>
           </Alert>
-          <Link href="/player/bookings" className="inline-block mt-4">
-            <Button variant="ghost" size="sm">
-              <ChevronLeft className="size-4 mr-1" />
-              Quay lại
-            </Button>
-          </Link>
+          <HeroUILink href="/player/bookings" className={buttonVariants({ variant: "ghost", size: "sm", className: "mt-4 min-h-11" })}>
+            <ChevronLeft className="size-4 mr-1" />
+            Quay lại
+          </HeroUILink>
         </main>
       </div>
     );
@@ -159,7 +344,10 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
   const canReject = isOwner && b.status === "Pending";
   const canComplete = isOwner && b.status === "Confirmed";
   const hasSuccessfulPayment = payments.some((payment) => payment.status === "Success");
+  const holdRemaining = Math.max(0, (holdDeadline ?? 0) - now);
+  const holdElapsed = deadlineElapsed;
   const canPay = isPlayer && b.status === "Pending" && !hasSuccessfulPayment;
+  const countdown = `${String(Math.floor(holdRemaining / 60_000)).padStart(2, "0")}:${String(Math.floor((holdRemaining % 60_000) / 1000)).padStart(2, "0")}`;
 
   const latestPayment = payments.at(0);
   const isTerminal = isTerminalBookingStatus(b.status);
@@ -188,6 +376,21 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
             </Alert.Content>
           </Alert>}
 
+          {b.status === "Pending" && <Alert status={holdElapsed ? "warning" : "accent"}>
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>{holdElapsed ? "Thời gian giữ chỗ đã hết" : "Đang giữ chỗ để thanh toán"}</Alert.Title>
+              <Alert.Description>Thời gian còn lại: {countdown}</Alert.Description>
+              <span className="sr-only" role="status">{holdElapsed ? "Thời gian giữ chỗ đã hết" : "Đang giữ chỗ để thanh toán"}</span>
+            </Alert.Content>
+          </Alert>}
+
+          {statusRefreshError && <Alert status="warning">
+            <Alert.Indicator />
+            <Alert.Content><Alert.Title>Chưa thể cập nhật trạng thái đặt sân</Alert.Title><Alert.Description>{statusRefreshError}</Alert.Description></Alert.Content>
+            <Button variant="secondary" size="sm" onPress={refreshBookingStatus}>Thử tải lại trạng thái</Button>
+          </Alert>}
+
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-6">
               <Card>
@@ -206,7 +409,8 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
               </Card>}
 
               {b.note && <Card><Card.Header><Card.Title>Ghi chú</Card.Title></Card.Header><Card.Content className="px-5 pb-5 text-sm text-[var(--muted)]">{b.note}</Card.Content></Card>}
-              {review && <Card><Card.Header><Card.Title>Đánh giá của bạn</Card.Title></Card.Header><Card.Content className="px-5 pb-5 text-sm">{review.rating}/5{review.reviewText ? ` · ${review.reviewText}` : ""}</Card.Content></Card>}
+              {reviewNotice && <Alert status="warning"><Alert.Indicator /><Alert.Content><Alert.Title>{reviewNotice}</Alert.Title></Alert.Content></Alert>}
+              {review && <Card><Card.Header><Card.Title>Đánh giá của bạn</Card.Title></Card.Header><Card.Content className="space-y-4 px-5 pb-5 text-sm"><p>{review.rating}/5{review.reviewText ? ` · ${review.reviewText}` : ""}</p>{review.images?.length > 0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{review.images.map((image) => <div key={image.id} className="relative overflow-hidden rounded-xl border border-[var(--border)]"><Image unoptimized width={240} height={240} className="aspect-square w-full object-cover" src={image.imageUrl} alt={`Ảnh đánh giá sân ${b.venueName}`} /><Button aria-label="Xóa ảnh đánh giá" className="absolute right-1 top-1 min-h-11 min-w-11" isIconOnly variant="danger" onPress={() => { setActionError(null); setDeleteTarget(image); }}><TrashBin className="size-4" /></Button></div>)}</div>}</Card.Content></Card>}
               <p className="text-xs text-[var(--muted)]">Tạo lúc: {formatDateTime(b.createdAt)}{b.updatedAt && ` · Cập nhật: ${formatDateTime(b.updatedAt)}`}</p>
             </div>
 
@@ -220,8 +424,9 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
                 {latestPayment && <div className="flex justify-between pt-2"><span className="text-[var(--muted)]">Thanh toán</span><Chip color={getStatusConfig("payment", latestPayment.status).color} size="sm">{getStatusConfig("payment", latestPayment.status).label}</Chip></div>}
               </Card.Content>
               {(canPay || canCancel || canConfirm || canReject || canComplete || (isPlayer && b.status === "Completed" && !review)) && <Card.Footer className="flex flex-col gap-2 px-5 pb-5">
+              {actionError && <Alert status="danger" className="w-full"><Alert.Indicator /><Alert.Content><Alert.Title>Không thể hoàn tất thao tác</Alert.Title><Alert.Description>{actionError}</Alert.Description></Alert.Content></Alert>}
               {canPay && (
-                <Button className="w-full" variant="primary" isPending={actionLoading} onPress={handlePay}>
+                <Button className="min-h-11 w-full" variant="primary" isDisabled={holdElapsed} isPending={actionLoading} onPress={handlePay}>
                   {actionLoading ? "Đang xử lý..." : "Thanh toán ngay"}
                 </Button>
               )}
@@ -257,22 +462,53 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
               )}
               {canCancel && (
                 <Button
-                  className="w-full"
+                  className="min-h-11 w-full"
                   variant="danger"
                   isPending={actionLoading}
-                  onPress={() => handleAction(() => cancelBooking(b.id))}
+                  onPress={() => { setActionError(null); setCancelOpen(true); }}
                 >
                   Hủy đặt sân
                 </Button>
               )}
-              {isPlayer && b.status === "Completed" && !review && <Button className="w-full" variant="primary" onPress={() => setReviewOpen(true)}>Đánh giá sân</Button>}
+              {isPlayer && b.status === "Completed" && !review && <Button className="w-full" variant="primary" onPress={() => { setReviewError(null); setReviewNotice(null); setReviewOpen(true); }}>Đánh giá sân</Button>}
               </Card.Footer>}
-              <Card.Footer className="px-5 pb-5 pt-0"><Link href={`/venues/${b.venueId}`}><Button variant="secondary" className="w-full">Xem trang sân</Button></Link></Card.Footer>
+              <Card.Footer className="px-5 pb-5 pt-0"><HeroUILink href={`/venues/${b.venueId}`} className={buttonVariants({ variant: "secondary", className: "min-h-11 w-full" })}>{b.status === "Expired" ? "Chọn khung giờ mới" : "Xem trang sân"}</HeroUILink></Card.Footer>
             </Card>
           </div>
         </div>
       </main>
-      <Modal isOpen={reviewOpen} onOpenChange={setReviewOpen}><Modal.Backdrop><Modal.Container size="sm"><Modal.Dialog><Modal.CloseTrigger /><Modal.Header><Modal.Heading>Đánh giá sân</Modal.Heading></Modal.Header><Modal.Body><Form id="review-form" className="space-y-4" onSubmit={submitReview}><Select isRequired name="rating" placeholder="Chọn số sao"><Label>Số sao</Label><Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger><Select.Popover><ListBox>{[5,4,3,2,1].map((rating) => <ListBox.Item id={rating} key={rating} textValue={`${rating} sao`}>{rating} sao<ListBox.ItemIndicator /></ListBox.Item>)}</ListBox></Select.Popover><FieldError /></Select><TextArea name="reviewText" rows={4} placeholder="Chia sẻ trải nghiệm của bạn"><Label>Nội dung</Label></TextArea></Form></Modal.Body><Modal.Footer><Button variant="ghost" onPress={() => setReviewOpen(false)}>Hủy</Button><Button form="review-form" type="submit" isPending={actionLoading}>Gửi đánh giá</Button></Modal.Footer></Modal.Dialog></Modal.Container></Modal.Backdrop></Modal>
+      <Modal.Backdrop isOpen={reviewOpen} onOpenChange={(open) => { if (!actionLoading) setReviewOpen(open); }}>
+        <Modal.Container size="sm" scroll="inside"><Modal.Dialog aria-label="Đánh giá sân">
+          {!actionLoading && <Modal.CloseTrigger />}
+          <Modal.Header><Modal.Heading>Đánh giá sân</Modal.Heading></Modal.Header>
+          <Modal.Body><Form id="review-form" className="space-y-4" onSubmit={submitReview}>
+            <Select isRequired name="rating" placeholder="Chọn số sao"><Label>Số sao</Label><Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger><Select.Popover><ListBox>{[5,4,3,2,1].map((rating) => <ListBox.Item id={rating} key={rating} textValue={`${rating} sao`}>{rating} sao<ListBox.ItemIndicator /></ListBox.Item>)}</ListBox></Select.Popover><FieldError /></Select>
+            <div className="space-y-2"><Label htmlFor="review-text">Nội dung</Label><TextArea id="review-text" name="reviewText" rows={4} fullWidth placeholder="Chia sẻ trải nghiệm của bạn" /></div>
+            <div className="space-y-2"><Label htmlFor="review-images">Ảnh đánh giá</Label><input id="review-images" className="block min-h-11 w-full rounded-xl border border-[var(--border)] p-2" type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={(event) => { addLocalImages(event.target.files); event.target.value = ""; }} /></div>
+            {reviewError && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Không thể lưu đánh giá</Alert.Title><Alert.Description>{reviewError}</Alert.Description></Alert.Content></Alert>}
+            {localImages.length > 0 && <div className="grid grid-cols-2 gap-3">{localImages.map((image) => <div key={image.preview} className="relative"><Image unoptimized width={240} height={240} className="aspect-square w-full rounded-xl object-cover" src={image.preview} alt={`Ảnh xem trước ${image.file.name}`} /><Button aria-label={`Bỏ ảnh ${image.file.name}`} className="absolute right-1 top-1 min-h-11 min-w-11" isIconOnly variant="danger" onPress={() => removeLocalImage(image.preview)}><TrashBin className="size-4" /></Button>{image.error && <p className="mt-1 text-xs text-danger">{image.error}</p>}</div>)}</div>}
+          </Form></Modal.Body>
+          <Modal.Footer><Button className="min-h-11" variant="tertiary" isDisabled={actionLoading} onPress={() => setReviewOpen(false)}>Hủy</Button><Button className="min-h-11" form="review-form" type="submit" isPending={actionLoading}>Gửi đánh giá</Button></Modal.Footer>
+        </Modal.Dialog></Modal.Container>
+      </Modal.Backdrop>
+
+      <Modal.Backdrop isOpen={cancelOpen} onOpenChange={(open) => { if (!actionLoading) setCancelOpen(open); }}>
+        <Modal.Container size="sm"><Modal.Dialog aria-label="Xác nhận hủy đặt sân">
+          {!actionLoading && <Modal.CloseTrigger />}
+          <Modal.Header><Modal.Heading>Xác nhận hủy đặt sân</Modal.Heading></Modal.Header>
+          <Modal.Body><div className="space-y-2"><Label htmlFor="cancel-reason">Lý do hủy (không bắt buộc)</Label><TextArea id="cancel-reason" fullWidth value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></div>{actionError && <p className="text-sm text-danger">{actionError}</p>}</Modal.Body>
+          <Modal.Footer><Button className="min-h-11" variant="tertiary" isDisabled={actionLoading} onPress={() => setCancelOpen(false)}>Quay lại</Button><Button className="min-h-11" variant="danger" isPending={actionLoading} onPress={() => handleAction(async () => { await cancelBooking(b.id, cancelReason.trim() || undefined); setCancelOpen(false); })}>Xác nhận hủy</Button></Modal.Footer>
+        </Modal.Dialog></Modal.Container>
+      </Modal.Backdrop>
+
+      <Modal.Backdrop isOpen={!!deleteTarget} onOpenChange={(open) => { if (!open && !actionLoading) setDeleteTarget(null); }}>
+        <Modal.Container size="sm"><Modal.Dialog aria-label="Xác nhận xóa ảnh đánh giá">
+          {!actionLoading && <Modal.CloseTrigger />}
+          <Modal.Header><Modal.Heading>Xóa ảnh đánh giá?</Modal.Heading></Modal.Header>
+          <Modal.Body>Ảnh sẽ bị xóa khỏi đánh giá của bạn.{actionError && <p className="mt-2 text-sm text-danger">{actionError}</p>}</Modal.Body>
+          <Modal.Footer><Button className="min-h-11" variant="tertiary" isDisabled={actionLoading} onPress={() => setDeleteTarget(null)}>Giữ ảnh</Button><Button className="min-h-11" variant="danger" isPending={actionLoading} onPress={confirmDeleteImage}>Xóa ảnh</Button></Modal.Footer>
+        </Modal.Dialog></Modal.Container>
+      </Modal.Backdrop>
     </div>
   );
 }

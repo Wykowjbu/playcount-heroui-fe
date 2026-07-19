@@ -4,15 +4,13 @@ import { useState } from "react";
 import {
   Button,
   Card,
+  Form,
   Select,
   Label,
   ListBox,
-  DatePicker,
-  DateField,
   Input,
   TextField,
 } from "@heroui/react";
-import type { DateValue } from "@internationalized/date";
 import type { Key } from "@heroui/react";
 import { Magnifier } from "@gravity-ui/icons";
 
@@ -25,21 +23,20 @@ interface Props {
   userName: string;
   userSports: string[];
   availableSports?: SportOption[];
-  onSearch: (params: { location: string; sportId: string; date: string }) => void;
+  onSearch: (params: { keyword: string; sportId: string }) => void;
 }
 
 export function DiscoveryHero({ userName, userSports, availableSports = [], onSearch }: Props) {
-  const [location, setLocation] = useState("");
+  const [keyword, setKeyword] = useState("");
   const [selectedSport, setSelectedSport] = useState<Key | null>(null);
-  const [selectedDate, setSelectedDate] = useState<DateValue | null>(null);
 
   const firstName = userName.split(" ").slice(-1)[0] || userName;
 
-  const handleSearch = () => {
+  const handleSearch = (event: React.FormEvent) => {
+    event.preventDefault();
     onSearch({
-      location,
+      keyword: keyword.trim(),
       sportId: selectedSport != null ? String(selectedSport) : "",
-      date: selectedDate ? String(selectedDate) : "",
     });
   };
 
@@ -65,25 +62,24 @@ export function DiscoveryHero({ userName, userSports, availableSports = [], onSe
         <div className="mt-8 max-w-4xl mx-auto">
           <Card className="bg-[var(--surface)] text-[var(--foreground)] shadow-xl">
             <Card.Content className="p-4 md:p-6">
-              <div className="flex flex-col md:flex-row gap-3">
-                {/* Location input */}
-                <TextField className="flex-1" aria-label="Địa điểm">
+              <Form onSubmit={handleSearch} className="flex flex-col items-stretch gap-3 md:flex-row md:items-end">
+                <TextField className="flex-1" value={keyword} onChange={setKeyword}>
+                  <Label>Từ khóa</Label>
                   <Input
                     type="text"
-                    placeholder="Địa điểm..."
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Tên sân hoặc địa chỉ"
+                    className="min-h-11"
                   />
                 </TextField>
 
-                {/* Sport Select */}
                 <Select
+                  className="flex-1"
                   placeholder="Môn thể thao"
                   selectedKey={selectedSport}
                   onSelectionChange={(key) => setSelectedSport(key)}
                 >
-                  <Label className="sr-only">Môn thể thao</Label>
-                  <Select.Trigger>
+                  <Label>Môn thể thao</Label>
+                  <Select.Trigger className="min-h-11">
                     <Select.Value />
                     <Select.Indicator />
                   </Select.Trigger>
@@ -99,40 +95,24 @@ export function DiscoveryHero({ userName, userSports, availableSports = [], onSe
                   </Select.Popover>
                 </Select>
 
-                {/* Date Picker */}
-                <DatePicker value={selectedDate} onChange={setSelectedDate}>
-                  <Label className="sr-only">Chọn ngày</Label>
-                  <DateField.Group>
-                    <DateField.Input>
-                      {(segment) => <DateField.Segment segment={segment} />}
-                    </DateField.Input>
-                    <DateField.Suffix>
-                      <DatePicker.Trigger>
-                        <DatePicker.TriggerIndicator />
-                      </DatePicker.Trigger>
-                    </DateField.Suffix>
-                  </DateField.Group>
-                </DatePicker>
-
-                {/* Search button */}
-                <Button variant="primary" size="lg" className="md:px-8" onPress={handleSearch}>
+                <Button type="submit" variant="primary" size="lg" className="min-h-11 md:px-8">
                   <Magnifier className="w-4 h-4 mr-1" />
                   Tìm sân
                 </Button>
-              </div>
+              </Form>
             </Card.Content>
           </Card>
         </div>
 
         {/* Quick chips */}
-        {(userSports.length > 0 || true) && (
+        {userSports.length > 0 && (
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             {userSports.map((s) => (
               <Button
                 key={s}
                 size="sm"
                 variant="outline"
-                className="border-current bg-transparent text-current"
+                className="min-h-11 border-current bg-transparent text-current"
                 onPress={() => setSelectedSport(availableSports.find((sport) => sport.name === s)?.id ?? null)}
               >
                 {s}

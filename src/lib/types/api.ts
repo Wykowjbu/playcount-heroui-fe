@@ -384,19 +384,33 @@ export interface MatchJoinRequestDto {
   createdAt: string;
 }
 
+export interface MatchCandidateDto {
+  profileId: number;
+  fullName: string;
+  avatarUrl: string | null;
+  city: string | null;
+  skillLevel: string | null;
+  matchScore: number;
+}
+
 export interface CreateMatchInvitationDto {
-  inviteeId: number;
+  inviteeProfileId: number;
+  message?: string;
 }
 
 export interface MatchInvitationDto {
   id: number;
   matchId: number;
-  inviterId: number;
+  sportName: string;
+  matchStartAt: string;
+  inviterProfileId: number;
   inviterName: string;
-  inviteeId: number;
+  inviteeProfileId: number;
   inviteeName: string;
+  message: string | null;
   status: string;
-  createdAt: string;
+  invitedAt: string;
+  respondedAt: string | null;
 }
 
 export interface RespondMatchInvitationDto {

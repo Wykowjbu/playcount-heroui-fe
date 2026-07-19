@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Button, Card, Chip, Tabs, Alert, Skeleton, Avatar } from "@heroui/react";
+import { Button, Card, Chip, Tabs, Alert, Skeleton } from "@heroui/react";
+import { buttonVariants } from "@heroui/styles/components/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { PlayerBottomNav } from "@/components/layout/player-bottom-nav";
 import { PlayerGuard } from "@/lib/auth/guards";
 import { searchMatches, getMyInvitations, respondToInvitation } from "@/lib/api/matches";
-import { useAuth } from "@/lib/auth-context";
 import type { MatchResponseDto, MatchInvitationDto } from "@/lib/types/api";
 import { getStatusConfig } from "@/lib/utils/status-labels";
-import { formatDate, formatTime, getInitials } from "@/lib/utils/format";
+import { formatDate, formatTime } from "@/lib/utils/format";
 import Calendar from "@gravity-ui/icons/Calendar";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Person from "@gravity-ui/icons/Person";
@@ -28,7 +28,6 @@ export function PlayerMatchesPage() {
 type TabKey = "hosted" | "joined" | "invitations";
 
 function PlayerMatchesContent() {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("hosted");
 
   return (
@@ -37,11 +36,9 @@ function PlayerMatchesContent() {
       <main className="mx-auto max-w-4xl px-4 pt-6 pb-24 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Kèo đấu của tôi</h1>
-          <Link href="/matches/create">
-            <Button variant="primary" size="sm">
-              <Plus className="size-4 mr-1" />
-              Tạo kèo
-            </Button>
+          <Link href="/matches/create" className={buttonVariants({ variant: "primary", size: "sm", className: "min-h-11" })}>
+            <Plus className="size-4 mr-1" />
+            Tạo kèo
           </Link>
         </div>
 
@@ -194,7 +191,9 @@ function InvitationsTab() {
   const [invitations, setInvitations] = useState<MatchInvitationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const actionLock = useRef<number | null>(null);
 
   const fetchInvitations = useCallback(async () => {
     setLoading(true);
@@ -214,13 +213,17 @@ function InvitationsTab() {
   }, [fetchInvitations]);
 
   const handleRespond = async (invitationId: number, status: string) => {
+    if (actionLock.current !== null) return;
+    actionLock.current = invitationId;
     setActionLoading(invitationId);
+    setActionError(null);
     try {
       await respondToInvitation(invitationId, status);
-      fetchInvitations();
-    } catch {
-      // silent
+      await fetchInvitations();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Không thể phản hồi lời mời");
     } finally {
+      actionLock.current = null;
       setActionLoading(null);
     }
   };
@@ -246,6 +249,12 @@ function InvitationsTab() {
 
   return (
     <div className="space-y-3">
+      {actionError && (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content><Alert.Title>{actionError}</Alert.Title></Alert.Content>
+        </Alert>
+      )}
       {invitations.map((inv) => {
         const invCfg = getStatusConfig("invitation", inv.status);
         return (
@@ -255,7 +264,7 @@ function InvitationsTab() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <Link href={`/matches/${inv.matchId}`} className="font-semibold text-[var(--foreground)] hover:underline truncate">
-                      Kèo đấu #{inv.matchId}
+                      {inv.sportName}
                     </Link>
                     <Chip color={invCfg.color} size="sm">{invCfg.label}</Chip>
                   </div>
@@ -263,21 +272,30 @@ function InvitationsTab() {
                     <Person className="inline size-3.5 mr-1" />
                     Mời bởi: {inv.inviterName}
                   </p>
+                  <p className="text-sm text-[var(--muted)]">
+                    <Calendar className="inline size-3.5 mr-1" />
+                    {formatDate(inv.matchStartAt)} · {formatTime(inv.matchStartAt)}
+                  </p>
+                  {inv.message && <p className="mt-1 text-sm text-[var(--foreground)]">{inv.message}</p>}
                 </div>
                 {inv.status === "Pending" && (
                   <div className="flex gap-2 shrink-0">
                     <Button
                       size="sm"
                       variant="primary"
-                      isDisabled={actionLoading === inv.id}
+                      className="min-h-11"
+                      aria-label={actionLoading === inv.id ? `Đang phản hồi lời mời ${inv.sportName}` : `Chấp nhận lời mời ${inv.sportName}`}
+                      isDisabled={actionLoading !== null}
                       onPress={() => handleRespond(inv.id, "Accepted")}
                     >
-                      Chấp nhận
+                      {actionLoading === inv.id ? "Đang xử lý..." : "Chấp nhận"}
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
-                      isDisabled={actionLoading === inv.id}
+                      className="min-h-11"
+                      aria-label={`Từ chối lời mời ${inv.sportName}`}
+                      isDisabled={actionLoading !== null}
                       onPress={() => handleRespond(inv.id, "Declined")}
                     >
                       Từ chối
@@ -360,9 +378,7 @@ function EmptyMatchesState({
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <Person className="size-12 text-[var(--muted)] mb-4" />
       <p className="text-[var(--muted)] mb-4">{message}</p>
-      <Link href={ctaHref}>
-        <Button variant="primary" size="sm">{ctaLabel}</Button>
-      </Link>
+      <Link href={ctaHref} className={buttonVariants({ variant: "primary", size: "sm", className: "min-h-11" })}>{ctaLabel}</Link>
     </div>
   );
 }

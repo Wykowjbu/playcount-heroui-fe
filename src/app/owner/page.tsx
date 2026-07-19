@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Alert, Avatar, Button, Card, CardContent, CardHeader, CardTitle, Label, ListBox, Select, Skeleton } from "@heroui/react";
+import { Alert, Avatar, Button, Card, Label, ListBox, Select, Skeleton } from "@heroui/react";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Calendar from "@gravity-ui/icons/Calendar";
 import CircleCheck from "@gravity-ui/icons/CircleCheck";
@@ -61,8 +61,24 @@ function DashboardContent() {
     </div>
     {venues.length > 1 && <Select selectedKey={selectedVenueId ? String(selectedVenueId) : ""} onSelectionChange={(key) => setSelectedVenueId(Number(key))} className="max-w-sm"><Label>Cơ sở đang xem</Label><Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger><Select.Popover><ListBox>{venues.map((venue) => <ListBox.Item id={String(venue.id)} key={venue.id} textValue={venue.name}>{venue.name}<ListBox.ItemIndicator /></ListBox.Item>)}</ListBox></Select.Popover></Select>}
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-      <Card className="border border-[var(--border)] bg-[var(--surface)] lg:col-span-8"><CardHeader className="flex items-center justify-between p-5 pb-2"><div><CardTitle>Đơn cần xử lý</CardTitle><p className="mt-1 text-xs text-[var(--muted)]">{pendingBookings.length} đơn chờ xử lý</p></div><OwnerTextLink href="/owner/bookings">Xem tất cả</OwnerTextLink></CardHeader><CardContent className="p-5 pt-2">{bookingLoading ? <div className="space-y-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-16 rounded-xl" />)}</div> : pendingBookings.length === 0 ? <p className="py-8 text-sm text-[var(--muted)]">Không có đơn cần xử lý</p> : <div>{pendingBookings.map((booking) => <BookingRow key={booking.id} booking={booking} />)}</div>}</CardContent></Card>
-      <Card className="border border-[var(--border)] bg-[var(--surface)] lg:col-span-4"><CardHeader className="flex items-center justify-between p-5 pb-2"><CardTitle>Cơ sở của tôi</CardTitle><OwnerTextLink href="/owner/venues">Xem tất cả</OwnerTextLink></CardHeader><CardContent className="p-5 pt-2">{venues.length === 0 ? <OwnerEmptyState title="Bạn chưa có cơ sở nào" description="Tạo cơ sở đầu tiên để thêm sân và nhận đặt chỗ." icon={MapPin} action={<OwnerButtonLink href="/owner/venues/new" size="sm">Tạo cơ sở</OwnerButtonLink>} /> : venues.slice(0, 4).map((venue) => <VenueRow key={venue.id} venue={venue} />)}</CardContent></Card>
+      <Card className="min-h-0 items-stretch gap-0 border border-[var(--border)] bg-[var(--surface)] p-0 lg:col-span-8">
+        <Card.Header className="flex-row items-start justify-between gap-4 border-b border-[var(--separator)] p-5 text-left">
+          <div><Card.Title>Đơn cần xử lý</Card.Title><Card.Description className="mt-1 text-xs">{pendingBookings.length} đơn chờ xử lý</Card.Description></div>
+          <OwnerTextLink href="/owner/bookings">Xem tất cả</OwnerTextLink>
+        </Card.Header>
+        <Card.Content className="min-h-0 p-5">
+          {bookingLoading ? <div className="space-y-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-16 rounded-xl" />)}</div> : pendingBookings.length === 0 ? <div className="flex min-h-32 items-center justify-center"><p className="text-sm text-[var(--muted)]">Không có đơn cần xử lý</p></div> : <div>{pendingBookings.map((booking) => <BookingRow key={booking.id} booking={booking} />)}</div>}
+        </Card.Content>
+      </Card>
+      <Card className="min-h-0 items-stretch gap-0 border border-[var(--border)] bg-[var(--surface)] p-0 lg:col-span-4">
+        <Card.Header className="flex-row items-start justify-between gap-4 border-b border-[var(--separator)] p-5 text-left">
+          <Card.Title>Cơ sở của tôi</Card.Title>
+          <OwnerTextLink href="/owner/venues">Xem tất cả</OwnerTextLink>
+        </Card.Header>
+        <Card.Content className="min-h-0 p-5">
+          {venues.length === 0 ? <OwnerEmptyState title="Bạn chưa có cơ sở nào" description="Tạo cơ sở đầu tiên để thêm sân và nhận đặt chỗ." icon={MapPin} action={<OwnerButtonLink href="/owner/venues/new" size="sm">Tạo cơ sở</OwnerButtonLink>} /> : venues.slice(0, 4).map((venue) => <VenueRow key={venue.id} venue={venue} />)}
+        </Card.Content>
+      </Card>
     </div>
   </div>;
 }

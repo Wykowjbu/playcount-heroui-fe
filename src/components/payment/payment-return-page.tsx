@@ -1,15 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Button, Card, Alert, Spinner } from "@heroui/react";
+import { Card, Spinner } from "@heroui/react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AuthGuard } from "@/lib/auth/guards";
 import { syncPayOsPayment } from "@/lib/api/payments";
+import type { PaymentDto } from "@/lib/types/api";
 import { getPaymentBookingId } from "@/lib/utils/flow-navigation";
 import CircleCheck from "@gravity-ui/icons/CircleCheck";
 import CircleExclamation from "@gravity-ui/icons/CircleExclamation";
+
+const paymentSyncs = new Map<number, Promise<PaymentDto>>();
+
+function getPaymentSync(bookingId: number): Promise<PaymentDto> {
+  const existing = paymentSyncs.get(bookingId);
+  if (existing) return existing;
+
+  const promise = syncPayOsPayment(bookingId);
+  paymentSyncs.set(bookingId, promise);
+  const cleanup = () => {
+    if (paymentSyncs.get(bookingId) === promise) paymentSyncs.delete(bookingId);
+  };
+  void promise.then(cleanup, cleanup);
+  return promise;
+}
 
 export function PaymentReturnPage() {
   return (
@@ -23,39 +39,56 @@ function PaymentReturnContent() {
   const searchParams = useSearchParams();
   const bookingIdFromQuery = getPaymentBookingId(searchParams);
 
-  const [syncing, setSyncing] = useState(true);
-  const [result, setResult] = useState<"success" | "failed" | null>(null);
-  const [bookingId, setBookingId] = useState<number | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  type Result = "success" | "failed" | null;
+  const [view, setView] = useState<{ bookingId: number | null; result: Result; error: string | null }>({
+    bookingId: null,
+    result: null,
+    error: null,
+  });
+  const generationRef = useRef(0);
+
+  const invalid = bookingIdFromQuery === null;
+  const currentView = view.bookingId === bookingIdFromQuery ? view : null;
+  const syncing = !invalid && currentView?.result == null;
+  const result = invalid ? "invalid" : currentView?.result ?? null;
+  const errorMsg = invalid
+    ? "Liên kết thanh toán thiếu mã đặt sân hợp lệ. Hãy mở lịch đặt của bạn để tiếp tục."
+    : currentView?.error ?? null;
 
   useEffect(() => {
-    const sync = async () => {
-      if (!bookingIdFromQuery) {
-        setResult("failed");
-        setErrorMsg("Không tìm thông tin đơn hàng.");
-        setSyncing(false);
-        return;
-      }
-      setBookingId(bookingIdFromQuery);
+    const generation = ++generationRef.current;
+    let disposed = false;
+    if (!bookingIdFromQuery) return;
 
-      // Otherwise sync with backend
-      try {
-        const payment = await syncPayOsPayment(bookingIdFromQuery);
-        if (payment.status === "Success") {
-          setResult("success");
+    setView({ bookingId: bookingIdFromQuery, result: null, error: null });
+    const promise = getPaymentSync(bookingIdFromQuery);
+
+    promise
+      .then((payment) => {
+        if (disposed || generation !== generationRef.current) return;
+        const status = payment.status.toLowerCase();
+        if (status === "success") {
+          setView({ bookingId: bookingIdFromQuery, result: "success", error: null });
         } else {
-          setResult("failed");
-          setErrorMsg("Thanh toán chưa được xác nhận. Vui lòng kiểm tra lại sau.");
+          setView({
+            bookingId: bookingIdFromQuery,
+            result: "failed",
+            error: "Thanh toán chưa được xác nhận, có thể do giao dịch bị hủy hoặc đã hết hạn. Hãy mở chi tiết đặt sân để kiểm tra và thử lại.",
+          });
         }
-      } catch (err: unknown) {
-        setResult("failed");
-        setErrorMsg(err instanceof Error ? err.message : "Không thể xác nhận thanh toán.");
-      } finally {
-        setSyncing(false);
-      }
-    };
+      })
+      .catch((err: unknown) => {
+        if (disposed || generation !== generationRef.current) return;
+        setView({
+          bookingId: bookingIdFromQuery,
+          result: "failed",
+          error: err instanceof Error ? err.message : "Không thể xác nhận thanh toán.",
+        });
+      });
 
-    sync();
+    return () => {
+      disposed = true;
+    };
   }, [bookingIdFromQuery]);
 
   return (
@@ -83,46 +116,26 @@ function PaymentReturnContent() {
                   Đặt sân của bạn đã được xác nhận. Cảm ơn bạn đã sử dụng PlayCourt.
                 </p>
                 <div className="flex flex-col gap-3 pt-2">
-                  {bookingId && (
-                    <Link href={`/bookings/${bookingId}`}>
-                      <Button variant="primary" className="w-full">
-                        Xem chi tiết đặt sân
-                      </Button>
-                    </Link>
-                  )}
-                  <Link href="/player/bookings">
-                    <Button variant="ghost" className="w-full">
-                      Tất cả lịch đặt
-                    </Button>
-                  </Link>
+                  <RecoveryLink href={`/bookings/${bookingIdFromQuery}`}>Xem chi tiết đặt sân</RecoveryLink>
+                  <RecoveryLink href="/player/bookings" secondary>Tất cả lịch đặt</RecoveryLink>
                 </div>
               </>
             )}
 
-            {!syncing && result === "failed" && (
+            {!syncing && (result === "failed" || result === "invalid") && (
               <>
                 <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-[var(--danger)]/10">
                   <CircleExclamation className="size-8 text-[var(--danger)]" />
                 </div>
                 <h1 className="text-xl font-bold text-[var(--foreground)]">
-                  Thanh toán chưa thành công
+                  {result === "invalid" ? "Không thể xác định đặt sân" : "Thanh toán chưa thành công"}
                 </h1>
                 <p className="text-[var(--muted)]">
                   {errorMsg ?? "Đã xảy ra lỗi trong quá trình thanh toán."}
                 </p>
                 <div className="flex flex-col gap-3 pt-2">
-                  {bookingId && (
-                    <Link href={`/bookings/${bookingId}`}>
-                      <Button variant="primary" className="w-full">
-                        Thử thanh toán lại
-                      </Button>
-                    </Link>
-                  )}
-                  <Link href="/player/bookings">
-                    <Button variant="ghost" className="w-full">
-                      Về danh sách đặt sân
-                    </Button>
-                  </Link>
+                  {bookingIdFromQuery && <RecoveryLink href={`/bookings/${bookingIdFromQuery}`}>Xem chi tiết đặt sân</RecoveryLink>}
+                  <RecoveryLink href="/player/bookings" secondary>Về danh sách đặt sân</RecoveryLink>
                 </div>
               </>
             )}
@@ -130,5 +143,16 @@ function PaymentReturnContent() {
         </Card>
       </main>
     </div>
+  );
+}
+
+function RecoveryLink({ href, secondary = false, children }: { href: string; secondary?: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className={`inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold ${secondary ? "bg-[var(--surface-secondary)] text-foreground" : "bg-[var(--accent)] text-[var(--accent-foreground)]"}`}
+    >
+      {children}
+    </Link>
   );
 }

@@ -7,7 +7,8 @@ export type Role = "admin" | "owner" | "player";
 export function normalizeRole(role: string): Role {
   if (["courtowner", "owner"].includes(role.toLowerCase())) return "owner";
   if (role.toLowerCase() === "admin") return "admin";
-  return "player";
+  if (role.toLowerCase() === "player") return "player";
+  throw new Error(`Unsupported role: ${role}`);
 }
 
 export function getHomeForRole(role: Role): string {
