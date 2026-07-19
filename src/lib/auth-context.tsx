@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, type ApiError } from "./api/client";
+import { apiFetch } from "./api/client";
 import { type Role, getHomeForRole, normalizeRole, safeRedirectTo } from "./utils/redirect";
 
 export interface AuthUser {
@@ -32,7 +32,7 @@ interface RegisterPayload {
   email: string;
   phoneNumber: string;
   password: string;
-  role?: "CourtOwner" | "Player";
+  role?: "Owner" | "Player";
   businessName?: string;
 }
 
@@ -102,16 +102,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    const stored = loadStored();
-    setUser(stored);
-    setIsLoading(false);
-  }, []);
-
   const persist = useCallback((u: AuthUser) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
     setUser(u);
   }, []);
+
+  /* ---- REFRESH USER (re-fetch /Users/me) ---- */
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await apiFetch<{
+        id: number;
+        fullName: string;
+        email: string;
+        role: string;
+        avatarUrl?: string;
+      }>("/Users/me");
+      if (res.data) {
+        const stored = loadStored();
+        if (!stored) return;
+        const updated: AuthUser = {
+          ...stored,
+          id: res.data.id,
+          email: res.data.email,
+          fullName: res.data.fullName,
+          role: normalizeRole(res.data.role),
+          avatar: res.data.avatarUrl,
+        };
+        persist(updated);
+      }
+    } catch {
+      // Token might be expired; client handles 401 redirect
+    }
+  }, [persist]);
+
+  useEffect(() => {
+    const stored = loadStored();
+    setUser(stored);
+    if (!stored) {
+      setIsLoading(false);
+      return;
+    }
+    void refreshUser().finally(() => setIsLoading(false));
+  }, [refreshUser]);
 
   /* ---- LOGIN ---- */
   const login = useCallback(
@@ -132,11 +164,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshToken: d.refreshToken,
       };
       persist(u);
+      await refreshUser();
 
       const dest = getHomeForRole(u.role);
       router.push(dest);
     },
-    [persist, router],
+    [persist, refreshUser, router],
   );
 
   /* ---- LOGIN WITH REDIRECT ---- */
@@ -158,6 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshToken: d.refreshToken,
       };
       persist(u);
+      await refreshUser();
 
       if (u.role === "admin") {
         router.push("/admin");
@@ -171,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const safe = safeRedirectTo(redirectTo);
       router.push(safe);
     },
-    [persist, router],
+    [persist, refreshUser, router],
   );
 
   /* ---- REGISTER ---- */
@@ -202,34 +236,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     window.location.replace("/");
   }, []);
-
-  /* ---- REFRESH USER (re-fetch /Users/me) ---- */
-  const refreshUser = useCallback(async () => {
-    try {
-      const res = await apiFetch<{
-        id: number;
-        fullName: string;
-        email: string;
-        role: string;
-        avatarUrl?: string;
-      }>("/Users/me");
-      if (res.data) {
-        const stored = loadStored();
-        if (!stored) return;
-        const updated: AuthUser = {
-          ...stored,
-          id: res.data.id,
-          email: res.data.email,
-          fullName: res.data.fullName,
-          role: normalizeRole(res.data.role),
-          avatar: res.data.avatarUrl,
-        };
-        persist(updated);
-      }
-    } catch {
-      // Token might be expired; client handles 401 redirect
-    }
-  }, [persist]);
 
   return (
     <AuthContext.Provider

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Button, Card, Chip, Alert, Skeleton, Separator, FieldError, Form, Label, Link as HeroUILink, ListBox, Modal, Select, Table, TextArea } from "@heroui/react";
+import { Button, Card, Chip, Alert, Skeleton, Separator, FieldError, Form, Label, Link as HeroUILink, ListBox, Modal, Select, Table, TextArea, toast } from "@heroui/react";
 import { buttonVariants } from "@heroui/styles/components/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AuthGuard } from "@/lib/auth/guards";
@@ -51,12 +51,10 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [review, setReview] = useState<ReviewResponseDto | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [localImages, setLocalImages] = useState<LocalReviewImage[]>([]);
   const localImagesRef = useRef(localImages);
-  const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewNotice, setReviewNotice] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ReviewImageDto | null>(null);
   const actionLock = useRef(false);
@@ -101,14 +99,12 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
     setLoading(true);
     setError(null);
     setActionLoading(false);
-    setActionError(null);
     setReview(null);
     setReviewOpen(false);
     setCancelOpen(false);
     setCancelReason("");
     localImagesRef.current.forEach(({ preview }) => URL.revokeObjectURL(preview));
     setLocalImages([]);
-    setReviewError(null);
     setReviewNotice(null);
     setDeleteTarget(null);
     setStatusRefreshError(null);
@@ -179,15 +175,12 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
     if (actionLock.current) return;
     actionLock.current = true;
     setActionLoading(true);
-    setActionError(null);
     const requestedId = bookingId;
     try {
       await action();
       if (mounted.current && bookingIdRef.current === requestedId) await fetchData(false);
-    } catch (err) {
-      if (mounted.current && bookingIdRef.current === requestedId) {
-        setActionError(err instanceof Error ? err.message : "Không thể thực hiện thao tác");
-      }
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       actionLock.current = false;
       if (mounted.current && bookingIdRef.current === requestedId) setActionLoading(false);
@@ -198,7 +191,6 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
     if (actionLock.current || (holdDeadline !== null && Date.now() >= holdDeadline)) return;
     actionLock.current = true;
     setActionLoading(true);
-    setActionError(null);
     try {
       const res = await createPayOsPayment(bookingId);
       const checkoutUrl = getTrustedPayOsCheckoutUrl(res.checkoutUrl);
@@ -208,7 +200,7 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
         throw new Error("Liên kết thanh toán không hợp lệ");
       }
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Không thể tạo liên kết thanh toán");
+      toast.danger(err instanceof Error ? err.message : "Không thể tạo liên kết thanh toán");
     } finally {
       actionLock.current = false;
       setActionLoading(false);
@@ -221,7 +213,6 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
     actionLock.current = true;
     const data = new FormData(event.currentTarget);
     setActionLoading(true);
-    setReviewError(null);
     try {
       const uploaded = await Promise.all(localImages.map(async (image) => {
         if (image.uploadedUrl) return image;
@@ -265,7 +256,7 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
       setLocalImages([]);
       setReviewOpen(false);
     } catch (err) {
-      setReviewError(err instanceof Error ? err.message : "Không thể gửi đánh giá");
+      toast.danger(err instanceof Error ? err.message : "Không thể gửi đánh giá");
     } finally {
       actionLock.current = false;
       setActionLoading(false);
@@ -285,7 +276,7 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
       else accepted.push({ file, preview: URL.createObjectURL(file), displayOrder: displayOrder++ });
     });
     setLocalImages((images) => [...images, ...accepted]);
-    setReviewError(errors.length ? errors.join("; ") : null);
+    if (errors.length) toast.danger(errors.join("; "));
   };
 
   const removeLocalImage = (preview: string) => {
@@ -410,7 +401,7 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
 
               {b.note && <Card><Card.Header><Card.Title>Ghi chú</Card.Title></Card.Header><Card.Content className="px-5 pb-5 text-sm text-[var(--muted)]">{b.note}</Card.Content></Card>}
               {reviewNotice && <Alert status="warning"><Alert.Indicator /><Alert.Content><Alert.Title>{reviewNotice}</Alert.Title></Alert.Content></Alert>}
-              {review && <Card><Card.Header><Card.Title>Đánh giá của bạn</Card.Title></Card.Header><Card.Content className="space-y-4 px-5 pb-5 text-sm"><p>{review.rating}/5{review.reviewText ? ` · ${review.reviewText}` : ""}</p>{review.images?.length > 0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{review.images.map((image) => <div key={image.id} className="relative overflow-hidden rounded-xl border border-[var(--border)]"><Image unoptimized width={240} height={240} className="aspect-square w-full object-cover" src={image.imageUrl} alt={`Ảnh đánh giá sân ${b.venueName}`} /><Button aria-label="Xóa ảnh đánh giá" className="absolute right-1 top-1 min-h-11 min-w-11" isIconOnly variant="danger" onPress={() => { setActionError(null); setDeleteTarget(image); }}><TrashBin className="size-4" /></Button></div>)}</div>}</Card.Content></Card>}
+              {review && <Card><Card.Header><Card.Title>Đánh giá của bạn</Card.Title></Card.Header><Card.Content className="space-y-4 px-5 pb-5 text-sm"><p>{review.rating}/5{review.reviewText ? ` · ${review.reviewText}` : ""}</p>{review.images?.length > 0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{review.images.map((image) => <div key={image.id} className="relative overflow-hidden rounded-xl border border-[var(--border)]"><Image unoptimized width={240} height={240} className="aspect-square w-full object-cover" src={image.imageUrl} alt={`Ảnh đánh giá sân ${b.venueName}`} /><Button aria-label="Xóa ảnh đánh giá" className="absolute right-1 top-1 min-h-11 min-w-11" isIconOnly variant="danger" onPress={() => setDeleteTarget(image)}><TrashBin className="size-4" /></Button></div>)}</div>}</Card.Content></Card>}
               <p className="text-xs text-[var(--muted)]">Tạo lúc: {formatDateTime(b.createdAt)}{b.updatedAt && ` · Cập nhật: ${formatDateTime(b.updatedAt)}`}</p>
             </div>
 
@@ -424,7 +415,6 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
                 {latestPayment && <div className="flex justify-between pt-2"><span className="text-[var(--muted)]">Thanh toán</span><Chip color={getStatusConfig("payment", latestPayment.status).color} size="sm">{getStatusConfig("payment", latestPayment.status).label}</Chip></div>}
               </Card.Content>
               {(canPay || canCancel || canConfirm || canReject || canComplete || (isPlayer && b.status === "Completed" && !review)) && <Card.Footer className="flex flex-col gap-2 px-5 pb-5">
-              {actionError && <Alert status="danger" className="w-full"><Alert.Indicator /><Alert.Content><Alert.Title>Không thể hoàn tất thao tác</Alert.Title><Alert.Description>{actionError}</Alert.Description></Alert.Content></Alert>}
               {canPay && (
                 <Button className="min-h-11 w-full" variant="primary" isDisabled={holdElapsed} isPending={actionLoading} onPress={handlePay}>
                   {actionLoading ? "Đang xử lý..." : "Thanh toán ngay"}
@@ -465,12 +455,12 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
                   className="min-h-11 w-full"
                   variant="danger"
                   isPending={actionLoading}
-                  onPress={() => { setActionError(null); setCancelOpen(true); }}
+                  onPress={() => setCancelOpen(true)}
                 >
                   Hủy đặt sân
                 </Button>
               )}
-              {isPlayer && b.status === "Completed" && !review && <Button className="w-full" variant="primary" onPress={() => { setReviewError(null); setReviewNotice(null); setReviewOpen(true); }}>Đánh giá sân</Button>}
+              {isPlayer && b.status === "Completed" && !review && <Button className="w-full" variant="primary" onPress={() => { setReviewNotice(null); setReviewOpen(true); }}>Đánh giá sân</Button>}
               </Card.Footer>}
               <Card.Footer className="px-5 pb-5 pt-0"><HeroUILink href={`/venues/${b.venueId}`} className={buttonVariants({ variant: "secondary", className: "min-h-11 w-full" })}>{b.status === "Expired" ? "Chọn khung giờ mới" : "Xem trang sân"}</HeroUILink></Card.Footer>
             </Card>
@@ -485,7 +475,6 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
             <Select isRequired name="rating" placeholder="Chọn số sao"><Label>Số sao</Label><Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger><Select.Popover><ListBox>{[5,4,3,2,1].map((rating) => <ListBox.Item id={rating} key={rating} textValue={`${rating} sao`}>{rating} sao<ListBox.ItemIndicator /></ListBox.Item>)}</ListBox></Select.Popover><FieldError /></Select>
             <div className="space-y-2"><Label htmlFor="review-text">Nội dung</Label><TextArea id="review-text" name="reviewText" rows={4} fullWidth placeholder="Chia sẻ trải nghiệm của bạn" /></div>
             <div className="space-y-2"><Label htmlFor="review-images">Ảnh đánh giá</Label><input id="review-images" className="block min-h-11 w-full rounded-xl border border-[var(--border)] p-2" type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={(event) => { addLocalImages(event.target.files); event.target.value = ""; }} /></div>
-            {reviewError && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Không thể lưu đánh giá</Alert.Title><Alert.Description>{reviewError}</Alert.Description></Alert.Content></Alert>}
             {localImages.length > 0 && <div className="grid grid-cols-2 gap-3">{localImages.map((image) => <div key={image.preview} className="relative"><Image unoptimized width={240} height={240} className="aspect-square w-full rounded-xl object-cover" src={image.preview} alt={`Ảnh xem trước ${image.file.name}`} /><Button aria-label={`Bỏ ảnh ${image.file.name}`} className="absolute right-1 top-1 min-h-11 min-w-11" isIconOnly variant="danger" onPress={() => removeLocalImage(image.preview)}><TrashBin className="size-4" /></Button>{image.error && <p className="mt-1 text-xs text-danger">{image.error}</p>}</div>)}</div>}
           </Form></Modal.Body>
           <Modal.Footer><Button className="min-h-11" variant="tertiary" isDisabled={actionLoading} onPress={() => setReviewOpen(false)}>Hủy</Button><Button className="min-h-11" form="review-form" type="submit" isPending={actionLoading}>Gửi đánh giá</Button></Modal.Footer>
@@ -496,7 +485,7 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
         <Modal.Container size="sm"><Modal.Dialog aria-label="Xác nhận hủy đặt sân">
           {!actionLoading && <Modal.CloseTrigger />}
           <Modal.Header><Modal.Heading>Xác nhận hủy đặt sân</Modal.Heading></Modal.Header>
-          <Modal.Body><div className="space-y-2"><Label htmlFor="cancel-reason">Lý do hủy (không bắt buộc)</Label><TextArea id="cancel-reason" fullWidth value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></div>{actionError && <p className="text-sm text-danger">{actionError}</p>}</Modal.Body>
+          <Modal.Body><div className="space-y-2"><Label htmlFor="cancel-reason">Lý do hủy (không bắt buộc)</Label><TextArea id="cancel-reason" fullWidth value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></div></Modal.Body>
           <Modal.Footer><Button className="min-h-11" variant="tertiary" isDisabled={actionLoading} onPress={() => setCancelOpen(false)}>Quay lại</Button><Button className="min-h-11" variant="danger" isPending={actionLoading} onPress={() => handleAction(async () => { await cancelBooking(b.id, cancelReason.trim() || undefined); setCancelOpen(false); })}>Xác nhận hủy</Button></Modal.Footer>
         </Modal.Dialog></Modal.Container>
       </Modal.Backdrop>
@@ -505,7 +494,7 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
         <Modal.Container size="sm"><Modal.Dialog aria-label="Xác nhận xóa ảnh đánh giá">
           {!actionLoading && <Modal.CloseTrigger />}
           <Modal.Header><Modal.Heading>Xóa ảnh đánh giá?</Modal.Heading></Modal.Header>
-          <Modal.Body>Ảnh sẽ bị xóa khỏi đánh giá của bạn.{actionError && <p className="mt-2 text-sm text-danger">{actionError}</p>}</Modal.Body>
+          <Modal.Body>Ảnh sẽ bị xóa khỏi đánh giá của bạn.</Modal.Body>
           <Modal.Footer><Button className="min-h-11" variant="tertiary" isDisabled={actionLoading} onPress={() => setDeleteTarget(null)}>Giữ ảnh</Button><Button className="min-h-11" variant="danger" isPending={actionLoading} onPress={confirmDeleteImage}>Xóa ảnh</Button></Modal.Footer>
         </Modal.Dialog></Modal.Container>
       </Modal.Backdrop>

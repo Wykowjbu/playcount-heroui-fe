@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  Alert,
   Button,
   Checkbox,
   Description,
@@ -116,11 +115,9 @@ export default function AuthModalPage() {
 function QuickLoginForm({ onSuccess }: { onSuccess: () => void }) {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
     try {
@@ -129,9 +126,8 @@ function QuickLoginForm({ onSuccess }: { onSuccess: () => void }) {
         password: data.password as string,
       });
       onSuccess();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Đăng nhập thất bại";
-      setError(msg);
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setIsLoading(false);
     }
@@ -139,11 +135,6 @@ function QuickLoginForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-      {error && (
-        <Alert color="danger">
-          {error}
-        </Alert>
-      )}
       <TextField isRequired className="w-full" name="email" type="email">
         <Label>Email</Label>
         <Input placeholder="name@example.com" />
@@ -182,11 +173,9 @@ function QuickLoginForm({ onSuccess }: { onSuccess: () => void }) {
 function QuickRegisterForm({ onSuccess }: { onSuccess: () => void }) {
   const { register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
     try {
@@ -197,9 +186,8 @@ function QuickRegisterForm({ onSuccess }: { onSuccess: () => void }) {
         password: data.password as string,
       });
       onSuccess();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Đăng ký thất bại";
-      setError(msg);
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setIsLoading(false);
     }
@@ -207,11 +195,6 @@ function QuickRegisterForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-      {error && (
-        <Alert color="danger">
-          {error}
-        </Alert>
-      )}
       <TextField isRequired className="w-full" name="fullName">
         <Label>Họ và tên</Label>
         <Input placeholder="Nguyễn Văn A" />

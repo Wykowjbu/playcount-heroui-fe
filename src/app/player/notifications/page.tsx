@@ -47,7 +47,6 @@ function NotificationsContent() {
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"all" | "unread">("all");
   const [readingIds, setReadingIds] = useState<Set<number>>(() => new Set());
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -130,7 +129,6 @@ function NotificationsContent() {
     if (!notification.isRead) {
       readingIdsRef.current.add(notification.id);
       setReadingIds(new Set(readingIdsRef.current));
-      setActionError(null);
       try {
         await markAsRead(notification.id);
         readSucceeded = true;
@@ -141,7 +139,7 @@ function NotificationsContent() {
           ));
         }
       } catch {
-        if (mountedRef.current) setActionError("Không thể đánh dấu thông báo đã đọc");
+        // apiFetch displays the backend message in a toast.
       } finally {
         readingIdsRef.current.delete(notification.id);
         if (mountedRef.current) setReadingIds(new Set(readingIdsRef.current));
@@ -155,13 +153,12 @@ function NotificationsContent() {
     if (markingAllRef.current) return;
     markingAllRef.current = true;
     setMarkingAll(true);
-    setActionError(null);
     try {
       await markAllAsRead();
       invalidateCurrentLoad();
       if (mountedRef.current) setNotifications((items) => items.map((item) => ({ ...item, isRead: true })));
     } catch {
-      if (mountedRef.current) setActionError("Không thể đánh dấu tất cả đã đọc");
+      // apiFetch displays the backend message in a toast.
     } finally {
       markingAllRef.current = false;
       if (mountedRef.current) setMarkingAll(false);
@@ -173,13 +170,12 @@ function NotificationsContent() {
     const notificationId = confirmDeleteId;
     deletingRef.current = true;
     setDeletingId(notificationId);
-    setActionError(null);
     try {
       await deleteNotification(notificationId);
       invalidateCurrentLoad();
       if (mountedRef.current) setNotifications((items) => items.filter((item) => item.id !== notificationId));
     } catch {
-      if (mountedRef.current) setActionError("Không thể xóa thông báo");
+      // apiFetch displays the backend message in a toast.
     } finally {
       deletingRef.current = false;
       if (mountedRef.current) {
@@ -237,12 +233,6 @@ function NotificationsContent() {
                 Thử lại
               </Button>
             </Alert.Content>
-          </Alert>
-        )}
-        {actionError && (
-          <Alert status="danger" className="mb-4">
-            <Alert.Indicator />
-            <Alert.Content><Alert.Description>{actionError}</Alert.Description></Alert.Content>
           </Alert>
         )}
 

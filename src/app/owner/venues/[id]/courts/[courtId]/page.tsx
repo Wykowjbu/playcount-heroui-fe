@@ -102,7 +102,7 @@ function CourtManager({ venueId, courtId }: { venueId: number; courtId: number }
     try {
       await updateCourt(courtId, { name: String(data.get("name")), sportId: Number(data.get("sportId")), indoor: data.get("indoor") === "true", status: String(data.get("status")) });
       await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể lưu sân"); }
+    } catch { /* apiFetch shows the toast. */ }
     finally { setPending(false); }
   }
 
@@ -115,7 +115,7 @@ function CourtManager({ venueId, courtId }: { venueId: number; courtId: number }
       if (editingRule) await updatePricingRule(editingRule.id, body);
       else await createPricingRule(courtId, body);
       await load(); setRuleModalOpen(false); setEditingRule(null);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể lưu bảng giá"); }
+    } catch { /* apiFetch shows the toast. */ }
     finally { setPending(false); }
   }
 
@@ -126,7 +126,7 @@ function CourtManager({ venueId, courtId }: { venueId: number; courtId: number }
     try {
       await createCourtSchedule(courtId, { startAt: new Date(String(data.get("startAt"))).toISOString(), endAt: new Date(String(data.get("endAt"))).toISOString(), reason: String(data.get("reason")) || undefined });
       await load(); setScheduleModalOpen(false);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể thêm lịch đóng sân"); }
+    } catch { /* apiFetch shows the toast. */ }
     finally { setPending(false); }
   }
 
@@ -134,7 +134,7 @@ function CourtManager({ venueId, courtId }: { venueId: number; courtId: number }
     if (!ruleToDelete) return;
     setPending(true); setError("");
     try { await deletePricingRule(ruleToDelete.id); await load(); setRuleToDelete(null); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể xóa khung giá"); }
+    catch { /* apiFetch shows the toast. */ }
     finally { setPending(false); }
   }
 
@@ -142,7 +142,7 @@ function CourtManager({ venueId, courtId }: { venueId: number; courtId: number }
     if (!scheduleToDelete) return;
     setPending(true); setError("");
     try { await deleteCourtSchedule(scheduleToDelete.id); await load(); setScheduleToDelete(null); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể xóa lịch đóng sân"); }
+    catch { /* apiFetch shows the toast. */ }
     finally { setPending(false); }
   }
 

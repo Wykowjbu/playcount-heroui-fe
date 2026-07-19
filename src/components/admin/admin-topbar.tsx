@@ -1,5 +1,6 @@
 import { Avatar, Button } from "@heroui/react";
 import Bars from "@gravity-ui/icons/Bars";
+import { useAuth } from "@/lib/auth-context";
 
 interface AdminTopbarProps {
   onToggleSidebar: () => void;
@@ -7,6 +8,7 @@ interface AdminTopbarProps {
 }
 
 export function AdminTopbar({ onToggleSidebar, sidebarCollapsed }: AdminTopbarProps) {
+  const { user } = useAuth();
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--background)] px-6">
       <div className="flex items-center gap-3">
@@ -20,7 +22,10 @@ export function AdminTopbar({ onToggleSidebar, sidebarCollapsed }: AdminTopbarPr
         </Button>
         <p className="text-sm font-semibold">Quản trị hệ thống</p>
       </div>
-      <Avatar size="sm"><Avatar.Fallback>AD</Avatar.Fallback></Avatar>
+      <Avatar size="sm">
+        {user?.avatar ? <Avatar.Image src={user.avatar} alt={user.fullName} /> : null}
+        <Avatar.Fallback>{user?.fullName?.charAt(0)?.toUpperCase() ?? "AD"}</Avatar.Fallback>
+      </Avatar>
     </header>
   );
 }

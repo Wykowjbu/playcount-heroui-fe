@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { Button, InputOTP, Label, Link, Spinner, Alert } from "@heroui/react";
+import { Button, InputOTP, Label, Link, Spinner, toast } from "@heroui/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { apiFetch } from "@/lib/api/client";
@@ -22,8 +22,6 @@ function VerifyEmailContent() {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
 
   // Cooldown timer for resend
@@ -39,10 +37,9 @@ function VerifyEmailContent() {
 
   async function handleVerify() {
     if (otp.length < 6) {
-      setError("Vui lòng nhập đầy đủ mã OTP");
+      toast.danger("Vui lòng nhập đầy đủ mã OTP");
       return;
     }
-    setError("");
     setIsLoading(true);
     try {
       await apiFetch("/Auth/verify-email", {
@@ -50,10 +47,9 @@ function VerifyEmailContent() {
         body: JSON.stringify({ email: emailFromQuery, otp }),
         skipAuth: true,
       });
-      setSuccess(true);
-      setTimeout(() => router.push("/login"), 2000);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Xác minh thất bại");
+      router.push("/login");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setIsLoading(false);
     }
@@ -61,11 +57,10 @@ function VerifyEmailContent() {
 
   async function handleResend() {
     if (!emailFromQuery) {
-      setError("Không có email. Vui lòng quay lại đăng ký.");
+      toast.danger("Không có email. Vui lòng quay lại đăng ký.");
       return;
     }
     setIsResending(true);
-    setError("");
     try {
       await apiFetch("/Auth/resend-verify-email", {
         method: "POST",
@@ -73,28 +68,11 @@ function VerifyEmailContent() {
         skipAuth: true,
       });
       setResendCooldown(60);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Gửi lại thất bại");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setIsResending(false);
     }
-  }
-
-  if (success) {
-    return (
-      <AuthLayout>
-        <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
-          <Alert status="success" className="w-full">
-            <Alert.Indicator />
-            <Alert.Content>
-              <Alert.Description>
-                Xác minh email thành công! Đang chuyển đến trang đăng nhập...
-              </Alert.Description>
-            </Alert.Content>
-          </Alert>
-        </div>
-      </AuthLayout>
-    );
   }
 
   return (
@@ -125,14 +103,6 @@ function VerifyEmailContent() {
               <InputOTP.Slot index={5} />
             </InputOTP.Group>
           </InputOTP>
-          {error && (
-            <Alert status="danger" className="w-full max-w-xs">
-              <Alert.Indicator />
-              <Alert.Content>
-                <Alert.Description>{error}</Alert.Description>
-              </Alert.Content>
-            </Alert>
-          )}
         </div>
 
         <Button

@@ -10,9 +10,10 @@ import House from "@gravity-ui/icons/House";
 import Plus from "@gravity-ui/icons/Plus";
 import { OwnerGuard } from "@/lib/auth/guards";
 import { OwnerShell } from "@/components/owner/owner-shell";
+import { OwnerOnboarding } from "@/components/owner/owner-onboarding";
 import { OwnerButtonLink, OwnerEmptyState, OwnerMetricCard, OwnerPageHeader, OwnerStatusChip, OwnerTextLink } from "@/components/owner/owner-ui";
-import { getMyVenues, getOwnerStats, getVenueBookings } from "@/lib/api/owner";
-import type { BookingResponseDto, OwnerStatsDto, VenueResponseDto } from "@/lib/types/api";
+import { getMyCourtOwnerProfile, getMyVenues, getOwnerStats, getVenueBookings } from "@/lib/api/owner";
+import type { BookingResponseDto, CourtOwnerProfileResponseDto, OwnerStatsDto, VenueResponseDto } from "@/lib/types/api";
 import { formatDate, formatTime, formatVnd, getInitials } from "@/lib/utils/format";
 
 export default function OwnerDashboardPage() {
@@ -20,6 +21,7 @@ export default function OwnerDashboardPage() {
 }
 
 function DashboardContent() {
+  const [ownerProfile, setOwnerProfile] = useState<CourtOwnerProfileResponseDto | null>(null);
   const [stats, setStats] = useState<OwnerStatsDto | null>(null);
   const [venues, setVenues] = useState<VenueResponseDto[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
@@ -32,6 +34,9 @@ function DashboardContent() {
   async function loadOverview() {
     setLoading(true); setError(null);
     try {
+      const profile = await getMyCourtOwnerProfile();
+      setOwnerProfile(profile);
+      if (profile.verificationStatus !== "Approved") return;
       const [ownerStats, ownerVenues] = await Promise.all([getOwnerStats(), getMyVenues()]);
       setStats(ownerStats); setVenues(ownerVenues); setSelectedVenueId((current) => current ?? ownerVenues[0]?.id ?? null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể tải dữ liệu tổng quan."); }
@@ -40,16 +45,19 @@ function DashboardContent() {
 
   useEffect(() => { void loadOverview(); }, []);
   useEffect(() => {
-    if (!selectedVenueId) { setPendingBookings([]); return; }
+    if (ownerProfile?.verificationStatus !== "Approved" || !selectedVenueId) { setPendingBookings([]); return; }
     setBookingLoading(true);
     getVenueBookings(selectedVenueId, { status: "Pending", pageSize: 5 })
       .then((result) => setPendingBookings(result.data ?? []))
       .catch(() => setPendingBookings([]))
       .finally(() => setBookingLoading(false));
-  }, [selectedVenueId]);
+  }, [ownerProfile?.verificationStatus, selectedVenueId]);
 
   if (loading) return <DashboardSkeleton />;
   if (error) return <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Không tải được tổng quan</Alert.Title><Alert.Description>{error}</Alert.Description><Button size="sm" variant="tertiary" onPress={() => void loadOverview()}>Thử lại</Button></Alert.Content></Alert>;
+  if (ownerProfile && ownerProfile.verificationStatus !== "Approved") {
+    return <OwnerOnboarding profile={ownerProfile} onProfileChange={setOwnerProfile} />;
+  }
 
   return <div className="mx-auto max-w-[1440px] space-y-6">
     <OwnerPageHeader title="Tổng quan" description="Theo dõi cơ sở, sân và đơn đặt sân của bạn" action={<OwnerButtonLink href="/owner/venues/new"><Plus className="mr-1.5 size-4" />Tạo cơ sở</OwnerButtonLink>} />

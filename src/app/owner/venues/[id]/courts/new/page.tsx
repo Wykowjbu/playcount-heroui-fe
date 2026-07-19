@@ -35,8 +35,8 @@ function NewCourtForm({ venueId }: { venueId: number }) {
         indoor: data.get("indoor") === "true",
       });
       router.push(`/owner/venues/${venueId}/courts/${court.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tạo sân");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setLoading(false);
     }

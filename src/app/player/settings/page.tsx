@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Card,
   Button,
-  Alert,
   Form,
   TextField,
   Input,
@@ -12,7 +11,6 @@ import {
   FieldError,
 } from "@heroui/react";
 import Lock from "@gravity-ui/icons/Lock";
-import Check from "@gravity-ui/icons/Check";
 import { AuthGuard } from "@/lib/auth/guards";
 import { apiFetch } from "@/lib/api/client";
 import type { ChangePasswordRequestDto } from "@/lib/types/api";
@@ -37,8 +35,6 @@ function SettingsContent() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   function validate(): boolean {
@@ -70,9 +66,6 @@ function SettingsContent() {
 
     try {
       setSubmitting(true);
-      setError(null);
-      setSuccess(false);
-
       const body: ChangePasswordRequestDto = {
         currentPassword,
         newPassword,
@@ -83,13 +76,12 @@ function SettingsContent() {
         body: JSON.stringify(body),
       });
 
-      setSuccess(true);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setFieldErrors({});
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể đổi mật khẩu");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setSubmitting(false);
     }
@@ -124,21 +116,6 @@ function SettingsContent() {
                 </p>
               </div>
             </div>
-
-            {success && (
-              <Alert color="success" className="mb-4">
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4" />
-                  Đổi mật khẩu thành công
-                </div>
-              </Alert>
-            )}
-
-            {error && (
-              <Alert color="danger" className="mb-4">
-                {error}
-              </Alert>
-            )}
 
             <Form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="w-full max-w-md">

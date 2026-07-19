@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { Alert, AlertDialog, Avatar, Button, Card, CardContent, Dropdown, Skeleton, Table } from "@heroui/react";
+import { Alert, AlertDialog, Avatar, Button, Card, Dropdown, Skeleton, Table } from "@heroui/react";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Ellipsis from "@gravity-ui/icons/Ellipsis";
 import Eye from "@gravity-ui/icons/Eye";
@@ -26,7 +26,7 @@ function VenuesContent() {
 
   async function load() { setLoading(true); setError(null); try { setVenues(await getMyVenues()); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể tải danh sách cơ sở."); } finally { setLoading(false); } }
   useEffect(() => { void load(); }, []);
-  async function remove(venueId: number) { setDeleting(venueId); try { await deleteVenue(venueId); setVenues((items) => items.filter((venue) => venue.id !== venueId)); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể xóa cơ sở."); } finally { setDeleting(null); } }
+  async function remove(venueId: number) { setDeleting(venueId); try { await deleteVenue(venueId); setVenues((items) => items.filter((venue) => venue.id !== venueId)); } catch { /* apiFetch shows the toast. */ } finally { setDeleting(null); } }
 
   return <div className="mx-auto max-w-[1440px] space-y-6">
     <OwnerPageHeader title="Cơ sở của tôi" description={loading ? "Đang tải cơ sở..." : `${venues.length} cơ sở`} action={<OwnerButtonLink href="/owner/venues/new"><Plus className="mr-1.5 size-4" />Tạo cơ sở</OwnerButtonLink>} />
@@ -40,7 +40,7 @@ function VenueTable({ venues, deleting, onDeleteRequest }: { venues: VenueRespon
   return <Table><Table.ScrollContainer><Table.Content aria-label="Danh sách cơ sở"><Table.Header><Table.Column isRowHeader>Cơ sở</Table.Column><Table.Column>Trạng thái</Table.Column><Table.Column>Ngày tạo</Table.Column><Table.Column>Thao tác</Table.Column></Table.Header><Table.Body>{venues.map((venue) => <Table.Row id={venue.id} key={venue.id}><Table.Cell><VenueIdentity venue={venue} /></Table.Cell><Table.Cell><OwnerStatusChip kind="venue" status={venue.status} /></Table.Cell><Table.Cell>{formatDate(venue.createdAt)}</Table.Cell><Table.Cell><VenueActions venue={venue} disabled={deleting === venue.id} onDeleteRequest={onDeleteRequest} /></Table.Cell></Table.Row>)}</Table.Body></Table.Content></Table.ScrollContainer></Table>;
 }
 
-function VenueCard({ venue, deleting, onDeleteRequest }: { venue: VenueResponseDto; deleting: boolean; onDeleteRequest: (venue: VenueResponseDto) => void }) { return <Card className="border border-[var(--border)] bg-[var(--surface)]"><CardContent className="space-y-4 p-4"><div className="flex items-start gap-3"><VenueIdentity venue={venue} /><OwnerStatusChip kind="venue" status={venue.status} /></div><p className="text-xs text-[var(--muted)]">Tạo {formatDate(venue.createdAt)}</p><div className="flex items-center justify-between"><OwnerButtonLink href={`/owner/venues/${venue.id}`} size="sm" variant="tertiary">Xem chi tiết</OwnerButtonLink><VenueActions venue={venue} disabled={deleting} onDeleteRequest={onDeleteRequest} /></div></CardContent></Card>; }
+function VenueCard({ venue, deleting, onDeleteRequest }: { venue: VenueResponseDto; deleting: boolean; onDeleteRequest: (venue: VenueResponseDto) => void }) { return <Card className="border border-[var(--border)] bg-[var(--surface)]"><Card.Content className="space-y-4 p-4"><div className="flex items-start gap-3"><VenueIdentity venue={venue} /><OwnerStatusChip kind="venue" status={venue.status} /></div><p className="text-xs text-[var(--muted)]">Tạo {formatDate(venue.createdAt)}</p><div className="flex items-center justify-between"><OwnerButtonLink href={`/owner/venues/${venue.id}`} size="sm" variant="tertiary">Xem chi tiết</OwnerButtonLink><VenueActions venue={venue} disabled={deleting} onDeleteRequest={onDeleteRequest} /></div></Card.Content></Card>; }
 
 function VenueIdentity({ venue }: { venue: VenueResponseDto }) { const cover = venue.images.find((image) => image.isCover) ?? venue.images[0]; return <div className="flex min-w-0 items-center gap-3"><Avatar className="size-12 shrink-0 rounded-xl">{cover && <Avatar.Image src={cover.imageUrl} alt={`Ảnh ${venue.name}`} />}<Avatar.Fallback className="rounded-xl"><MapPin className="size-5 text-[var(--muted)]" /></Avatar.Fallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-semibold">{venue.name}</p><p className="truncate text-xs text-[var(--muted)]">{venue.address}</p></div></div>; }
 

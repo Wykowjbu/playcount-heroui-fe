@@ -41,7 +41,7 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
   const [joinRequests, setJoinRequests] = useState<MatchJoinRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [requestsLoadError, setRequestsLoadError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const actionLock = useRef(false);
   const actionRequest = useRef(0);
@@ -54,7 +54,6 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
   const [candidateLoading, setCandidateLoading] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<number, string>>({});
-  const [inviteErrors, setInviteErrors] = useState<Record<number, string>>({});
   const [inviting, setInviting] = useState<Set<number>>(new Set());
   const [invited, setInvited] = useState<Set<number>>(new Set());
   const inviteLocks = useRef(new Set<string>());
@@ -63,7 +62,6 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
     | { kind: "join"; request: MatchJoinRequestDto; status: "Approved" | "Rejected" }
     | null
   >(null);
-  const [confirmationError, setConfirmationError] = useState<string | null>(null);
 
   const fetchCandidates = useCallback(async (parentRequest?: number) => {
     if (activeMatchId.current !== matchId) return;
@@ -100,7 +98,7 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
           const reqs = await getJoinRequests(matchId);
           if (isCurrent()) setJoinRequests(reqs);
         } catch (err: unknown) {
-          if (isCurrent()) setActionError(err instanceof Error ? err.message : "Không thể tải yêu cầu tham gia");
+          if (isCurrent()) setRequestsLoadError(err instanceof Error ? err.message : "Không thể tải yêu cầu tham gia");
         }
       } else {
         setJoinRequests([]);
@@ -124,7 +122,6 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
       setJoinRequests([]);
       setCandidates([]);
       setMessages({});
-      setInviteErrors({});
       setInviting(new Set());
       setInvited(new Set());
       inviteLocks.current.clear();
@@ -132,9 +129,8 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
       setCandidateLoading(false);
       setActionLoading(false);
       setConfirmation(null);
-      setConfirmationError(null);
       setLoadError(null);
-      setActionError(null);
+      setRequestsLoadError(null);
       setCandidateError(null);
     }
     void fetchData();
@@ -146,12 +142,11 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
     const isCurrent = () => activeMatchId.current === matchId && actionRequest.current === requestId;
     actionLock.current = true;
     setActionLoading(true);
-    setActionError(null);
     try {
       await action();
       await fetchData();
-    } catch (err: unknown) {
-      if (isCurrent()) setActionError(err instanceof Error ? err.message : "Thao tác thất bại");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       if (isCurrent()) {
         actionLock.current = false;
@@ -166,18 +161,12 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
     if (inviteLocks.current.has(lockKey) || invited.has(candidate.profileId)) return;
     inviteLocks.current.add(lockKey);
     setInviting((current) => new Set(current).add(candidate.profileId));
-    setInviteErrors((current) => ({ ...current, [candidate.profileId]: "" }));
     try {
       const message = messages[candidate.profileId]?.trim();
       await invitePlayer(matchId, { inviteeProfileId: candidate.profileId, ...(message ? { message } : {}) });
       if (isCurrent()) setInvited((current) => new Set(current).add(candidate.profileId));
-    } catch (err: unknown) {
-      if (isCurrent()) {
-        setInviteErrors((current) => ({
-          ...current,
-          [candidate.profileId]: err instanceof Error ? err.message : "Không thể gửi lời mời",
-        }));
-      }
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       inviteLocks.current.delete(lockKey);
       if (isCurrent()) {
@@ -197,8 +186,6 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
     const isCurrent = () => activeMatchId.current === matchId && actionRequest.current === requestId;
     actionLock.current = true;
     setActionLoading(true);
-    setActionError(null);
-    setConfirmationError(null);
     try {
       if (pending.kind === "cancel") {
         await cancelMatch(matchId);
@@ -208,11 +195,8 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
       if (!isCurrent()) return;
       setConfirmation(null);
       await fetchData();
-    } catch (err: unknown) {
+    } catch {
       if (!isCurrent()) return;
-      const message = err instanceof Error ? err.message : "Thao tác thất bại";
-      setConfirmationError(message);
-      setActionError(message);
     } finally {
       if (isCurrent()) {
         actionLock.current = false;
@@ -407,7 +391,7 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
                           className="min-h-11"
                           aria-label={`Duyệt ${req.userName}`}
                           isDisabled={actionLoading}
-                          onPress={() => { setConfirmationError(null); setConfirmation({ kind: "join", request: req, status: "Approved" }); }}
+                          onPress={() => setConfirmation({ kind: "join", request: req, status: "Approved" })}
                         >
                           <CircleCheck className="size-3.5 mr-1" />
                           Duyệt
@@ -418,7 +402,7 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
                           className="min-h-11"
                           aria-label={`Từ chối ${req.userName}`}
                           isDisabled={actionLoading}
-                          onPress={() => { setConfirmationError(null); setConfirmation({ kind: "join", request: req, status: "Rejected" }); }}
+                          onPress={() => setConfirmation({ kind: "join", request: req, status: "Rejected" })}
                         >
                           <CircleXmark className="size-3.5 mr-1" />
                           Từ chối
@@ -489,9 +473,6 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
                                 <TextArea rows={2} placeholder="Lời nhắn không bắt buộc" />
                               </TextField>
                             )}
-                            {inviteErrors[candidate.profileId] && (
-                              <p role="alert" className="text-sm text-[var(--danger)]">{inviteErrors[candidate.profileId]}</p>
-                            )}
                             <Button
                               variant="primary"
                               size="sm"
@@ -546,7 +527,7 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
                 variant="danger"
                 className="min-h-11"
                 isDisabled={actionLoading}
-                onPress={() => { setConfirmationError(null); setConfirmation({ kind: "cancel" }); }}
+                onPress={() => setConfirmation({ kind: "cancel" })}
               >
                 Hủy kèo
               </Button>
@@ -554,11 +535,11 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
           </div>
 
           {/* Error display */}
-          {actionError && (
+          {requestsLoadError && (
             <Alert status="danger">
               <Alert.Indicator />
               <Alert.Content>
-                <Alert.Title>{actionError}</Alert.Title>
+                <Alert.Title>{requestsLoadError}</Alert.Title>
               </Alert.Content>
             </Alert>
           )}
@@ -573,7 +554,7 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
       <Modal>
         <Modal.Backdrop
           isOpen={confirmation !== null}
-          onOpenChange={(open) => { if (!open && !actionLock.current) { setConfirmation(null); setConfirmationError(null); } }}
+          onOpenChange={(open) => { if (!open && !actionLock.current) setConfirmation(null); }}
           isDismissable={!actionLoading}
         >
           <Modal.Container size="sm" placement="center">
@@ -594,15 +575,9 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
                     ? "Kèo đấu sẽ bị hủy và người chơi không thể tiếp tục tham gia."
                     : `${confirmation?.status === "Approved" ? "Duyệt" : "Từ chối"} yêu cầu của ${confirmation?.request.userName}?`}
                 </p>
-                {confirmationError && (
-                  <Alert status="danger">
-                    <Alert.Indicator />
-                    <Alert.Content><Alert.Title>{confirmationError}</Alert.Title></Alert.Content>
-                  </Alert>
-                )}
               </Modal.Body>
               <Modal.Footer>
-                <Button variant="tertiary" className="min-h-11" isDisabled={actionLoading} onPress={() => { if (!actionLock.current) { setConfirmation(null); setConfirmationError(null); } }}>Quay lại</Button>
+                <Button variant="tertiary" className="min-h-11" isDisabled={actionLoading} onPress={() => { if (!actionLock.current) setConfirmation(null); }}>Quay lại</Button>
                 <Button
                   variant={confirmation?.kind === "cancel" || confirmation?.status === "Rejected" ? "danger" : "primary"}
                   className="min-h-11"

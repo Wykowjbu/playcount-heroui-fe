@@ -11,24 +11,22 @@ import {
   Label,
   Link,
   TextField,
+  toast,
 } from "@heroui/react";
 import { ChevronLeft } from "@gravity-ui/icons";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError } from "@/lib/api";
 
 export default function OwnerRegisterPage() {
   const { register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
     if (data.password !== data.confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp");
+      toast.danger("Mật khẩu xác nhận không khớp");
       setIsLoading(false);
       return;
     }
@@ -38,14 +36,11 @@ export default function OwnerRegisterPage() {
         password: data.password as string,
         fullName: data.fullName as string,
         phoneNumber: data.phoneNumber as string,
-        role: "CourtOwner",
+        role: "Owner",
         businessName: data.businessName as string,
       });
-    } catch (err: unknown) {
-      const msg = err instanceof ApiError && err.errors.length > 0
-        ? err.errors[0]
-        : err instanceof Error ? err.message : "Đăng ký thất bại";
-      setError(msg);
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setIsLoading(false);
     }
@@ -66,12 +61,6 @@ export default function OwnerRegisterPage() {
         </div>
 
         <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
-
           <TextField isRequired className="w-full" name="fullName">
             <Label>Họ và tên</Label>
             <Input placeholder="Nguyễn Văn A" />

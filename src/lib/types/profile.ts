@@ -23,7 +23,10 @@ export interface CourtOwnerProfileSummaryDto {
   businessLicenseNo: string | null;
   taxCode: string | null;
   businessAddress: string | null;
-  verificationStatus: string; // "Pending" | "Approved" | "Rejected"
+  businessLicenseDocumentUrl: string | null;
+  verificationStatus: string; // "Draft" | "Pending" | "Approved" | "Rejected"
+  rejectionReason: string | null;
+  submittedAt: string | null;
 }
 
 /** Body for PUT /api/Users/me */
@@ -79,6 +82,7 @@ export const SKILL_LEVEL_OPTIONS = [
 ] as const;
 
 export const VERIFICATION_STATUS_MAP: Record<string, { label: string; color: "warning" | "success" | "danger" }> = {
+  Draft: { label: "Chưa hoàn thiện", color: "warning" },
   Pending: { label: "Chờ duyệt", color: "warning" },
   Approved: { label: "Đã duyệt", color: "success" },
   Rejected: { label: "Bị từ chối", color: "danger" },

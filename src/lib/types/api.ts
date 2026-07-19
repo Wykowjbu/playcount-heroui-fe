@@ -581,8 +581,32 @@ export interface CourtOwnerDetailDto extends CourtOwnerListItemDto {
   businessLicenseNo: string | null;
   taxCode: string | null;
   businessAddress: string | null;
+  businessLicenseDocumentUrl: string | null;
   rejectionReason: string | null;
+  submittedAt: string | null;
   updatedAt: string | null;
+}
+
+export interface CourtOwnerProfileResponseDto {
+  id: number;
+  businessName: string;
+  businessLicenseNo: string | null;
+  taxCode: string | null;
+  businessAddress: string | null;
+  businessLicenseDocumentUrl: string | null;
+  verificationStatus: "Draft" | "Pending" | "Approved" | "Rejected";
+  rejectionReason: string | null;
+  submittedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface UpdateCourtOwnerProfileRequestDto {
+  businessName?: string;
+  businessLicenseNo?: string;
+  taxCode?: string;
+  businessAddress?: string;
+  businessLicenseDocumentUrl?: string;
 }
 
 export interface UpdateCourtOwnerVerificationStatusRequestDto {

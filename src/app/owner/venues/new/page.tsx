@@ -5,9 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Button,
   Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   TextField,
   Input,
   TextArea,
@@ -54,8 +51,8 @@ function CreateVenueForm() {
     try {
       const venue = await createVenue({ name: name.trim(), address: address.trim(), description: description.trim() || undefined, phone: phone.trim() || undefined });
       router.push(`/owner/venues/${venue.id}`);
-    } catch (err: unknown) {
-      setErrors({ form: err instanceof Error ? err.message : "Tạo cơ sở thất bại" });
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setSubmitting(false);
     }
@@ -72,10 +69,10 @@ function CreateVenueForm() {
       </div>
 
       <Card className="border border-[var(--border)] bg-[var(--surface)]">
-        <CardHeader className="p-5 pb-0">
-          <CardTitle className="text-base font-semibold">Thông tin cơ sở</CardTitle>
-        </CardHeader>
-        <CardContent className="p-5">
+        <Card.Header className="p-5 pb-0">
+          <Card.Title className="text-base font-semibold">Thông tin cơ sở</Card.Title>
+        </Card.Header>
+        <Card.Content className="p-5">
           <Form onSubmit={handleSubmit} className="space-y-4">
             <TextField value={name} onChange={setName} isInvalid={!!errors.name} isRequired aria-label="Tên cơ sở">
               <Label>Tên cơ sở</Label>
@@ -99,8 +96,6 @@ function CreateVenueForm() {
               <TextArea placeholder="Mô tả về cơ sở..." className="min-h-28" />
             </TextField>
 
-            {errors.form && <p className="text-sm text-[var(--danger)]">{errors.form}</p>}
-
             <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
               <OwnerButtonLink href="/owner/venues" variant="ghost" className={submitting ? "pointer-events-none opacity-50" : undefined}>Hủy</OwnerButtonLink>
               <Button variant="primary" type="submit" className="w-full sm:w-auto" isDisabled={submitting} isPending={submitting}>
@@ -108,7 +103,7 @@ function CreateVenueForm() {
               </Button>
             </div>
           </Form>
-        </CardContent>
+        </Card.Content>
       </Card>
     </div>
   );

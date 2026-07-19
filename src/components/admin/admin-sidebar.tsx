@@ -71,7 +71,7 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ collapsed }: AdminSidebarProps) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   function isActive(item: NavItem): boolean {
     if (item.id === "overview") return pathname === "/admin";
@@ -94,7 +94,8 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
         style={{ transitionTimingFunction: EASE }}
         >
           <Avatar size="sm">
-            <Avatar.Fallback>A</Avatar.Fallback>
+            {user?.avatar ? <Avatar.Image src={user.avatar} alt={user.fullName} /> : null}
+            <Avatar.Fallback>{user?.fullName?.charAt(0)?.toUpperCase() ?? "A"}</Avatar.Fallback>
           </Avatar>
           <div
             className={cn(

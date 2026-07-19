@@ -87,6 +87,7 @@ const REVIEW_STATUS: Record<string, StatusConfig> = {
 
 /* ---- Court Owner Verification Status ---- */
 const OWNER_VERIFICATION_STATUS: Record<string, StatusConfig> = {
+  Draft: { label: "Chưa hoàn thiện", color: "default" },
   Pending: { label: "Chờ xác minh", color: "warning" },
   Approved: { label: "Đã xác minh", color: "success" },
   Rejected: { label: "Bị từ chối", color: "danger" },

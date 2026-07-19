@@ -15,12 +15,39 @@ import type {
   CreateCourtScheduleRequestDto,
   VenueStaffResponseDto,
   AddVenueStaffRequestDto,
-  ReviewResponseDto,
   OwnerStatsDto,
   OpeningHourDto,
   UpdateOpeningHoursRequestDto,
   UpdateBookingStatusRequestDto,
+  CourtOwnerProfileResponseDto,
+  UpdateCourtOwnerProfileRequestDto,
 } from "@/lib/types/api";
+
+/* ------------------------------------------------------------------ */
+/* OWNER VERIFICATION PROFILE                                         */
+/* ------------------------------------------------------------------ */
+
+export async function getMyCourtOwnerProfile(): Promise<CourtOwnerProfileResponseDto> {
+  const res = await apiFetch<CourtOwnerProfileResponseDto>("/court-owners/me");
+  return res.data!;
+}
+
+export async function updateMyCourtOwnerProfile(
+  body: UpdateCourtOwnerProfileRequestDto,
+): Promise<CourtOwnerProfileResponseDto> {
+  const res = await apiFetch<CourtOwnerProfileResponseDto>("/court-owners/me", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  return res.data!;
+}
+
+export async function submitMyCourtOwnerProfile(): Promise<CourtOwnerProfileResponseDto> {
+  const res = await apiFetch<CourtOwnerProfileResponseDto>("/court-owners/me/submit", {
+    method: "POST",
+  });
+  return res.data!;
+}
 
 /* ------------------------------------------------------------------ */
 /* OWNER VENUES                                                        */

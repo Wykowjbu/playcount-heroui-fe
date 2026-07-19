@@ -26,8 +26,8 @@ function AmenitiesContent() {
   async function load() { setLoading(true); setError(null); try { setItems(await getAllAmenitiesAdmin()); } catch (e) { setError(e instanceof Error ? e.message : "Không thể tải tiện ích"); } finally { setLoading(false); } }
   useEffect(() => { void load(); }, []);
   function openEditor(item: AmenityDto | null) { setEditing(item); setName(item?.name ?? ""); setError(null); setEditorOpen(true); }
-  async function save() { if (!name.trim()) return; setPending(true); setError(null); try { if (editing) await updateAmenity(editing.id, { name: name.trim() }); else await createAmenity({ name: name.trim() }); await load(); setEditorOpen(false); } catch (e) { setError(e instanceof Error ? e.message : "Không thể lưu tiện ích"); } finally { setPending(false); } }
-  async function remove() { if (!deleting) return; setPending(true); setError(null); try { await deleteAmenity(deleting.id); await load(); setDeleting(null); } catch (e) { setError(e instanceof Error ? e.message : "Không thể xóa tiện ích"); } finally { setPending(false); } }
+  async function save() { if (!name.trim()) return; setPending(true); setError(null); try { if (editing) await updateAmenity(editing.id, { name: name.trim() }); else await createAmenity({ name: name.trim() }); await load(); setEditorOpen(false); } catch { /* apiFetch shows the toast. */ } finally { setPending(false); } }
+  async function remove() { if (!deleting) return; setPending(true); setError(null); try { await deleteAmenity(deleting.id); await load(); setDeleting(null); } catch { /* apiFetch shows the toast. */ } finally { setPending(false); } }
 
   return <div className="space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-2xl font-bold">Tiện ích</h1><p className="mt-1 text-sm text-[var(--muted)]">{items.length} tiện ích</p></div><Button onPress={() => openEditor(null)}><Plus className="size-4" />Thêm tiện ích</Button></div>

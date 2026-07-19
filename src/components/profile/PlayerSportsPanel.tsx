@@ -38,16 +38,13 @@ export function PlayerSportsPanel() {
   const [addSportId, setAddSportId] = useState<string>("");
   const [addSkill, setAddSkill] = useState<string>("");
   const [addSaving, setAddSaving] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
 
   // Edit modal state
   const [editSport, setEditSport] = useState<PlayerSportResponseDto | null>(null);
   const [editSkill, setEditSkill] = useState<string>("");
   const [editSaving, setEditSaving] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
   const [deleteSport, setDeleteSport] = useState<PlayerSportResponseDto | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const deleteLockRef = useRef(false);
 
   const loadData = useCallback(async () => {
@@ -83,7 +80,6 @@ export function PlayerSportsPanel() {
   async function handleAdd() {
     if (!addSportId || !addSkill) return;
     setAddSaving(true);
-    setAddError(null);
     try {
       await addMySport({
         sportId: Number(addSportId),
@@ -93,8 +89,8 @@ export function PlayerSportsPanel() {
       setAddSportId("");
       setAddSkill("");
       await loadData();
-    } catch (e: unknown) {
-      setAddError(e instanceof Error ? e.message : "Thêm môn thể thao thất bại");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setAddSaving(false);
     }
@@ -103,7 +99,6 @@ export function PlayerSportsPanel() {
   async function handleEdit() {
     if (!editSport) return;
     setEditSaving(true);
-    setEditError(null);
     try {
       await updateMySport(editSport.sportId, {
         skillLevel: Number(editSkill),
@@ -111,8 +106,8 @@ export function PlayerSportsPanel() {
       setEditSport(null);
       setEditSkill("");
       await loadData();
-    } catch (e: unknown) {
-      setEditError(e instanceof Error ? e.message : "Cập nhật thất bại");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setEditSaving(false);
     }
@@ -122,13 +117,12 @@ export function PlayerSportsPanel() {
     if (!deleteSport || deleteLockRef.current) return;
     deleteLockRef.current = true;
     setDeleteSaving(true);
-    setDeleteError(null);
     try {
       await deleteMySport(deleteSport.sportId);
       setSports((items) => items.filter((item) => item.sportId !== deleteSport.sportId));
       setDeleteSport(null);
     } catch {
-      setDeleteError("Không thể xóa môn thể thao");
+      // apiFetch displays the backend message in a toast.
     } finally {
       deleteLockRef.current = false;
       setDeleteSaving(false);
@@ -213,7 +207,6 @@ export function PlayerSportsPanel() {
                     // Map BE skill level string to numeric
                     const levelMap: Record<string, string> = { Beginner: "0", Intermediate: "1", Advanced: "2" };
                     setEditSkill(levelMap[sport.skillLevel] ?? "0");
-                    setEditError(null);
                   }}
                 >
                   <Pencil className="w-4 h-4" />
@@ -226,7 +219,6 @@ export function PlayerSportsPanel() {
                   className="text-danger"
                   onPress={() => {
                     setDeleteSport(sport);
-                    setDeleteError(null);
                   }}
                 >
                   <TrashBin className="w-4 h-4" />
@@ -247,15 +239,6 @@ export function PlayerSportsPanel() {
                 <Modal.Heading>Thêm môn thể thao</Modal.Heading>
               </Modal.Header>
               <Modal.Body>
-                {addError && (
-                  <Alert status="danger" className="mb-3">
-                    <Alert.Indicator />
-                    <Alert.Content>
-                      <Alert.Description>{addError}</Alert.Description>
-                    </Alert.Content>
-                  </Alert>
-                )}
-
                 <Select
                   className="w-full mb-3"
                   placeholder="Chọn môn thể thao"
@@ -330,19 +313,13 @@ export function PlayerSportsPanel() {
               <Modal.CloseTrigger />
               <Modal.Header><Modal.Heading>Xóa môn thể thao</Modal.Heading></Modal.Header>
               <Modal.Body>
-                {deleteError && (
-                  <Alert status="danger">
-                    <Alert.Indicator />
-                    <Alert.Content><Alert.Description>{deleteError}</Alert.Description></Alert.Content>
-                  </Alert>
-                )}
                 <p className="text-sm text-muted">Bạn có chắc muốn xóa môn thể thao này?</p>
                 <strong className="text-foreground">{deleteSport?.sportName}</strong>
               </Modal.Body>
               <Modal.Footer>
                 <Button variant="secondary" isDisabled={deleteSaving} onPress={() => setDeleteSport(null)}>Hủy</Button>
                 <Button variant="danger" isDisabled={deleteSaving} isPending={deleteSaving} onPress={() => void handleDelete()}>
-                  {deleteSaving ? "Đang xóa..." : deleteError ? "Thử xóa lại" : "Xóa"}
+                  {deleteSaving ? "Đang xóa..." : "Xóa"}
                 </Button>
               </Modal.Footer>
             </Modal.Dialog>
@@ -360,15 +337,6 @@ export function PlayerSportsPanel() {
                 <Modal.Heading>Sửa {editSport?.sportName}</Modal.Heading>
               </Modal.Header>
               <Modal.Body>
-                {editError && (
-                  <Alert status="danger" className="mb-3">
-                    <Alert.Indicator />
-                    <Alert.Content>
-                      <Alert.Description>{editError}</Alert.Description>
-                    </Alert.Content>
-                  </Alert>
-                )}
-
                 <Select
                   className="w-full"
                   placeholder="Chọn trình độ"

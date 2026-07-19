@@ -5,7 +5,7 @@
 
 import { toast } from "@heroui/react";
 
-export type UploadFolder = "avatars" | "venues" | "reviews";
+export type UploadFolder = "avatars" | "venues" | "reviews" | "owner-documents";
 
 export interface UploadResult {
   url: string;
@@ -15,7 +15,7 @@ export interface UploadResult {
 /**
  * Upload a file to R2 via Next.js server route.
  * @param file - The file to upload
- * @param folder - Storage folder (avatars, venues, reviews)
+ * @param folder - Storage folder
  * @returns The public URL and storage key
  */
 export async function uploadFile(
@@ -33,10 +33,11 @@ export async function uploadFile(
     return res.json() as Promise<UploadResult>;
   })();
 
+  const subject = folder === "owner-documents" ? "ảnh giấy phép" : "ảnh";
   toast.promise(request, {
-    loading: "Đang tải ảnh lên…",
-    success: "Đã tải ảnh lên",
-    error: (error) => error.message || "Không thể tải ảnh lên",
+    loading: `Đang tải ${subject} lên…`,
+    success: `Đã tải ${subject} lên thành công`,
+    error: (error) => error.message || `Không thể tải ${subject} lên`,
   });
   return request;
 }

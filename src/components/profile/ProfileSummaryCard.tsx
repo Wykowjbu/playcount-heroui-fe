@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Alert, Avatar, Button, Card, CardContent, Chip, Input, Separator } from "@heroui/react";
+import { Avatar, Button, Card, Chip, Input, Separator, toast } from "@heroui/react";
 import Camera from "@gravity-ui/icons/Camera";
 import Envelope from "@gravity-ui/icons/Envelope";
 import Smartphone from "@gravity-ui/icons/Smartphone";
@@ -12,6 +12,7 @@ import MapPin from "@gravity-ui/icons/MapPin";
 import ChevronRight from "@gravity-ui/icons/ChevronRight";
 import Link from "next/link";
 import { updateMyProfile, uploadAvatarImage } from "@/lib/api/profile";
+import { useAuth } from "@/lib/auth-context";
 import type { UserProfileResponseDto } from "@/lib/types/profile";
 import { USER_STATUS_MAP } from "@/lib/types/profile";
 
@@ -38,9 +39,9 @@ const OWNER_QUICK_LINKS = [
 ];
 
 export function ProfileSummaryCard({ profile, onProfileUpdate, role }: Props) {
+  const { refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
 
   const displayName = profile.fullName || profile.email;
   const initials = displayName.split(" ").slice(-2).map((w) => w[0]).join("").toUpperCase();
@@ -53,18 +54,18 @@ export function ProfileSummaryCard({ profile, onProfileUpdate, role }: Props) {
     if (!file) return;
 
     // Validate type
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) { setUploadError("Chỉ hỗ trợ ảnh PNG, JPEG hoặc WEBP."); return; }
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) { toast.danger("Chỉ hỗ trợ ảnh PNG, JPEG hoặc WEBP."); return; }
     // Validate size (2MB)
-    if (file.size > 2 * 1024 * 1024) { setUploadError("Ảnh đại diện không được vượt quá 2MB."); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.danger("Ảnh đại diện không được vượt quá 2MB."); return; }
 
     setUploading(true);
-    setUploadError("");
     try {
       const url = await uploadAvatarImage(file);
       const updated = await updateMyProfile({ avatarUrl: url, fullName: profile.fullName });
       onProfileUpdate(updated);
-    } catch (cause) {
-      setUploadError(cause instanceof Error ? cause.message : "Không thể cập nhật ảnh đại diện.");
+      await refreshUser();
+    } catch {
+      // Upload/API helpers display the error in a toast.
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -73,7 +74,7 @@ export function ProfileSummaryCard({ profile, onProfileUpdate, role }: Props) {
 
   return (
     <Card className="!h-auto !min-h-0 border border-border bg-[var(--surface)] lg:sticky lg:top-24">
-      <CardContent className="flex flex-col items-center p-5 text-center sm:p-6">
+      <Card.Content className="flex flex-col items-center p-5 text-center sm:p-6">
       {/* Avatar + Upload button */}
       <div className="relative mb-4">
         <Avatar size="lg">
@@ -109,8 +110,6 @@ export function ProfileSummaryCard({ profile, onProfileUpdate, role }: Props) {
         <Chip color="accent" size="sm">{roleLabel}</Chip>
         <Chip color={status.color} size="sm">{status.label}</Chip>
       </div>
-
-      {uploadError && <Alert className="mt-4 w-full text-left" status="danger"><Alert.Indicator /><Alert.Content><Alert.Description>{uploadError}</Alert.Description></Alert.Content></Alert>}
 
       <Separator className="my-4" />
 
@@ -152,7 +151,7 @@ export function ProfileSummaryCard({ profile, onProfileUpdate, role }: Props) {
           </Link>
         ))}
       </div>
-      </CardContent>
+      </Card.Content>
     </Card>
   );
 }

@@ -46,7 +46,7 @@ function VenueDetail({ venueId }: { venueId: number }) {
   async function changeStatus(status: 1 | 2 | 3) {
     setPending(true); setError(null);
     try { await updateVenueStatus(venueId, { status }); router.push("/admin/venues"); }
-    catch (e) { setError(e instanceof Error ? e.message : "Không thể cập nhật trạng thái"); }
+    catch { /* apiFetch shows the toast. */ }
     finally { setPending(false); setAction(null); }
   }
 

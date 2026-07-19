@@ -116,7 +116,7 @@ export async function apiFetch<T>(
     const deleting = method === "DELETE";
     toast.promise(request, {
       loading: deleting ? "Đang xóa…" : "Đang lưu thay đổi…",
-      success: deleting ? "Đã xóa" : "Đã lưu thay đổi",
+      success: (response) => response.message || (deleting ? "Đã xóa" : "Đã lưu thay đổi"),
       error: (error) => error.message || "Không thể hoàn tất thao tác",
     });
   }

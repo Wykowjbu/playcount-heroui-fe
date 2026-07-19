@@ -1,11 +1,12 @@
 "use client";
 
-import { Chip, Separator } from "@heroui/react";
+import { Alert, Chip, Link, Separator } from "@heroui/react";
 import OfficeBadge from "@gravity-ui/icons/OfficeBadge";
 import FileText from "@gravity-ui/icons/FileText";
 import Wallet from "@gravity-ui/icons/Wallet";
 import MapPin from "@gravity-ui/icons/MapPin";
 import Shield from "@gravity-ui/icons/Shield";
+import ArrowUpRightFromSquare from "@gravity-ui/icons/ArrowUpRightFromSquare";
 import type { UserProfileResponseDto } from "@/lib/types/profile";
 import { VERIFICATION_STATUS_MAP } from "@/lib/types/profile";
 
@@ -63,10 +64,28 @@ export function OwnerBusinessPanel({ profile }: Props) {
 
       <Separator />
 
+      {biz.rejectionReason && (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Hồ sơ cần bổ sung</Alert.Title>
+            <Alert.Description>{biz.rejectionReason}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      )}
+
+      {biz.businessLicenseDocumentUrl && (
+        <Link href={biz.businessLicenseDocumentUrl} target="_blank" rel="noreferrer" className="inline-flex text-sm">
+          Xem ảnh giấy phép <ArrowUpRightFromSquare className="size-4" />
+        </Link>
+      )}
+
       {/* Note */}
-      <p className="text-xs text-muted leading-relaxed">
-        Thông tin kinh doanh được dùng để xét duyệt chủ sân. Liên hệ quản trị viên nếu cần thay đổi.
-      </p>
+      {biz.verificationStatus === "Approved" ? (
+        <p className="text-xs text-muted leading-relaxed">Thông tin kinh doanh đã được xác minh và đang được khóa.</p>
+      ) : (
+        <Link href="/owner" className="text-sm font-medium">Quản lý hồ sơ xét duyệt</Link>
+      )}
     </div>
   );
 }

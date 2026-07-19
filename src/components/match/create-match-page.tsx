@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   Button, Card, Form, TextField, FieldError, Label, Input, TextArea,
   Select, ListBox, DatePicker, DateField, Calendar, TimeField,
-  NumberField, Alert, Skeleton,
+  NumberField, Skeleton,
 } from "@heroui/react";
 import { type DateValue, Time, parseDate, today, getLocalTimeZone } from "@internationalized/date";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -36,7 +36,6 @@ function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolea
   const [mounted, setMounted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Form state
   const [sportId, setSportId] = useState<Key | null>(null);
@@ -118,7 +117,6 @@ function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolea
     submittingRef.current = true;
     setSubmitting(true);
     onSubmittingChange?.(true);
-    setError(null);
     try {
       const time = (value: Time) => `${String(value.hour).padStart(2, "0")}:${String(value.minute).padStart(2, "0")}`;
       const startAt = toLocalIsoAtWallTime(selectedDate!.toString(), time(startTime!));
@@ -138,8 +136,8 @@ function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolea
       });
 
       router.push(`/matches/${match.id}`);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Tạo kèo thất bại. Vui lòng thử lại.");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -172,16 +170,6 @@ function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolea
         </Link>}
 
         {!embedded && <h1 className="mb-6 text-2xl font-bold text-[var(--foreground)]">Tạo kèo đấu mới</h1>}
-
-        {error && (
-          <Alert status="danger" className="mb-6">
-            <Alert.Indicator />
-            <Alert.Content>
-              <Alert.Title>{error}</Alert.Title>
-            </Alert.Content>
-            <Button type="submit" form={formId} variant="danger" size="sm">Thử lại</Button>
-          </Alert>
-        )}
 
         <Form id={formId} validationBehavior="aria" onSubmit={handleSubmit} className="space-y-6">
           <Card variant={embedded ? "transparent" : "default"}>

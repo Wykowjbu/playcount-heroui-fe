@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Form, TextField, Label, Input, Description, FieldError, Select, ListBox, DatePicker, DateField, Calendar, Button, Alert } from "@heroui/react";
+import { Form, TextField, Label, Input, Description, FieldError, Select, ListBox, DatePicker, DateField, Calendar, Button } from "@heroui/react";
 import { parseDate } from "@internationalized/date";
 import Envelope from "@gravity-ui/icons/Envelope";
 import FloppyDisk from "@gravity-ui/icons/FloppyDisk";
 import { updateMyProfile } from "@/lib/api/profile";
 import type { UserProfileResponseDto, UpdateUserProfileRequestDto } from "@/lib/types/profile";
 import { GENDER_OPTIONS } from "@/lib/types/profile";
+import { VietnamAddressFields } from "@/components/profile/VietnamAddressFields";
 
 interface Props {
   profile: UserProfileResponseDto;
@@ -21,10 +22,8 @@ export function ProfilePersonalForm({ profile, onProfileUpdate }: Props) {
   const [dob, setDob] = useState(profile.dateOfBirth ?? "");
   const [address, setAddress] = useState(profile.address ?? "");
   const [city, setCity] = useState(profile.city ?? "");
-  const [country, setCountry] = useState(profile.country ?? "");
+  const [addressVersion, setAddressVersion] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   const isDirty = useMemo(() => {
     return (
@@ -32,10 +31,9 @@ export function ProfilePersonalForm({ profile, onProfileUpdate }: Props) {
       gender !== (profile.gender != null ? String(mapGenderToKey(profile.gender)) : "") ||
       dob !== (profile.dateOfBirth ?? "") ||
       address !== (profile.address ?? "") ||
-      city !== (profile.city ?? "") ||
-      country !== (profile.country ?? "")
+      city !== (profile.city ?? "")
     );
-  }, [fullName, gender, dob, address, city, country, profile]);
+  }, [fullName, gender, dob, address, city, profile]);
 
   const fullNameError = fullName.trim().length === 0 ? "Họ tên không được để trống" : null;
 
@@ -54,8 +52,6 @@ export function ProfilePersonalForm({ profile, onProfileUpdate }: Props) {
     if (fullNameError || !isDirty) return;
 
     setSaving(true);
-    setError(null);
-    setSuccess(false);
 
     const body: UpdateUserProfileRequestDto = {
       fullName: fullName.trim(),
@@ -63,17 +59,14 @@ export function ProfilePersonalForm({ profile, onProfileUpdate }: Props) {
       dateOfBirth: dob || null,
       address: address || null,
       city: city || null,
-      country: country || null,
+      country: "Việt Nam",
     };
 
     try {
       const updated = await updateMyProfile(body);
       onProfileUpdate(updated);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Cập nhật thất bại";
-      setError(msg);
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setSaving(false);
     }
@@ -85,32 +78,11 @@ export function ProfilePersonalForm({ profile, onProfileUpdate }: Props) {
     setDob(profile.dateOfBirth ?? "");
     setAddress(profile.address ?? "");
     setCity(profile.city ?? "");
-    setCountry(profile.country ?? "");
-    setError(null);
-    setSuccess(false);
+    setAddressVersion((value) => value + 1);
   }
 
   return (
     <Form onSubmit={handleSubmit} className="max-w-[640px] space-y-5">
-      {error && (
-        <Alert status="danger">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Lỗi</Alert.Title>
-            <Alert.Description>{error}</Alert.Description>
-          </Alert.Content>
-        </Alert>
-      )}
-
-      {success && (
-        <Alert status="success">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Description>Cập nhật hồ sơ thành công!</Alert.Description>
-          </Alert.Content>
-        </Alert>
-      )}
-
       {/* Email - read only info */}
       <TextField isReadOnly name="email" value={profile.email} className="opacity-80">
         <Label>
@@ -215,24 +187,15 @@ export function ProfilePersonalForm({ profile, onProfileUpdate }: Props) {
         </Select>
       </div>
 
-      {/* Address - full width */}
-      <TextField name="address" value={address} onChange={setAddress}>
-        <Label>Địa chỉ</Label>
-        <Input placeholder="Số nhà, đường..." />
-      </TextField>
-
-      {/* City + Country: 2 columns on desktop */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <TextField name="city" value={city} onChange={setCity}>
-          <Label>Thành phố</Label>
-          <Input placeholder="TP. Hồ Chí Minh" />
-        </TextField>
-
-        <TextField name="country" value={country} onChange={setCountry}>
-          <Label>Quốc gia</Label>
-          <Input placeholder="Việt Nam" />
-        </TextField>
-      </div>
+      <VietnamAddressFields
+        key={addressVersion}
+        address={address}
+        province={city}
+        onChange={(value) => {
+          setAddress(value.address);
+          setCity(value.province);
+        }}
+      />
 
       {/* Submit footer */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { getMyProfile } from "@/lib/api/profile";
 import type { UserProfileResponseDto } from "@/lib/types/profile";
-import { Alert, Card, CardContent } from "@heroui/react";
+import { Alert, Card } from "@heroui/react";
 import { ProfileSummaryCard } from "./ProfileSummaryCard";
 import { ProfilePersonalForm } from "./ProfilePersonalForm";
 import { PlayerSportsPanel } from "./PlayerSportsPanel";
@@ -81,7 +81,7 @@ export function ProfilePageShell({ role }: Props) {
       {/* Right: Profile Card - flex-1, max ~760px */}
       <div className="flex-1 min-w-0 max-w-full lg:max-w-[760px]">
         <Card className="!h-auto !min-h-0 border border-border bg-[var(--surface)]">
-          <CardContent className="p-5 sm:p-6 lg:p-7">
+          <Card.Content className="p-5 sm:p-6 lg:p-7">
           <Tabs className="min-w-0 max-w-full" selectedKey={selectedTab} onSelectionChange={(key) => setSelectedTab(key as string)}>
             <Tabs.ListContainer className="max-w-full overflow-x-auto">
               <Tabs.List aria-label="Hồ sơ" className="w-max min-w-full">
@@ -140,7 +140,7 @@ export function ProfilePageShell({ role }: Props) {
               </Tabs.Panel>}
             </div>
           </Tabs>
-          </CardContent>
+          </Card.Content>
         </Card>
       </div>
     </div>

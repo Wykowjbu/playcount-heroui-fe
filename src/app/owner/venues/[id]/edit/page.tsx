@@ -6,9 +6,6 @@ import {
   Button,
   Alert,
   Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   TextField,
   Input,
   TextArea,
@@ -49,6 +46,7 @@ function EditVenueForm({ venueId }: { venueId: number }) {
   const [description, setDescription] = useState("");
   const [phone, setPhone] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     getMyVenueById(venueId)
@@ -59,7 +57,7 @@ function EditVenueForm({ venueId }: { venueId: number }) {
         setDescription(v.description ?? "");
         setPhone(v.phone ?? "");
       })
-      .catch((err: unknown) => setErrors({ form: err instanceof Error ? err.message : "Lỗi" }))
+      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : "Không thể tải cơ sở"))
       .finally(() => setLoading(false));
   }, [venueId]);
 
@@ -80,8 +78,8 @@ function EditVenueForm({ venueId }: { venueId: number }) {
       );
       setVenue(await getMyVenueById(venueId));
       router.push(`/owner/venues/${venueId}`);
-    } catch (err: unknown) {
-      setErrors({ form: err instanceof Error ? err.message : "Cập nhật thất bại" });
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setSubmitting(false);
     }
@@ -92,7 +90,7 @@ function EditVenueForm({ venueId }: { venueId: number }) {
   }
 
   if (!venue) {
-    return <div className="flex h-64 items-center justify-center"><p className="text-[var(--danger)]">{errors.form ?? "Không tìm thấy cơ sở"}</p></div>;
+    return <div className="flex h-64 items-center justify-center"><p className="text-[var(--danger)]">{loadError || "Không tìm thấy cơ sở"}</p></div>;
   }
 
   return (
@@ -119,10 +117,10 @@ function EditVenueForm({ venueId }: { venueId: number }) {
       )}
 
       <Card className="border border-[var(--border)] bg-[var(--surface)]">
-        <CardHeader className="p-5 pb-0">
-          <CardTitle className="text-base font-semibold">Thông tin cơ sở</CardTitle>
-        </CardHeader>
-        <CardContent className="p-5">
+        <Card.Header className="p-5 pb-0">
+          <Card.Title className="text-base font-semibold">Thông tin cơ sở</Card.Title>
+        </Card.Header>
+        <Card.Content className="p-5">
           <Form onSubmit={handleSubmit} className="space-y-4">
             <TextField value={name} onChange={setName} isInvalid={!!errors.name} isRequired aria-label="Tên cơ sở">
               <Label>Tên cơ sở</Label>
@@ -146,8 +144,6 @@ function EditVenueForm({ venueId }: { venueId: number }) {
               <TextArea className="min-h-28" />
             </TextField>
 
-            {errors.form && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Description>{errors.form}</Alert.Description></Alert.Content></Alert>}
-
             <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
               <OwnerButtonLink href={`/owner/venues/${venueId}`} variant="ghost" className={submitting ? "pointer-events-none opacity-50" : undefined}>Hủy</OwnerButtonLink>
               <Button variant="primary" type="submit" className="w-full sm:w-auto" isDisabled={submitting} isPending={submitting}>
@@ -155,7 +151,7 @@ function EditVenueForm({ venueId }: { venueId: number }) {
               </Button>
             </div>
           </Form>
-        </CardContent>
+        </Card.Content>
       </Card>
     </div>
   );

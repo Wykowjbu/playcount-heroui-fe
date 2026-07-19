@@ -2,13 +2,14 @@ import { randomUUID } from "node:crypto";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
-export const uploadFolders = ["avatars", "venues", "reviews"] as const;
+export const uploadFolders = ["avatars", "venues", "reviews", "owner-documents"] as const;
 export type UploadFolder = (typeof uploadFolders)[number];
 
-const imagePresets: Record<UploadFolder, { width: number; height: number; maxBytes: number }> = {
+const imagePresets: Record<UploadFolder, { width?: number; height?: number; maxBytes: number }> = {
   avatars: { width: 512, height: 512, maxBytes: 2 * 1024 * 1024 },
   venues: { width: 1600, height: 1200, maxBytes: 5 * 1024 * 1024 },
   reviews: { width: 1200, height: 1200, maxBytes: 5 * 1024 * 1024 },
+  "owner-documents": { maxBytes: 5 * 1024 * 1024 },
 };
 
 const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -52,11 +53,11 @@ export async function uploadImage(file: File, folder: UploadFolder) {
 
   let body: Buffer;
   try {
-    body = await sharp(Buffer.from(await file.arrayBuffer()))
-      .rotate()
-      .resize(preset.width, preset.height, { fit: "cover", position: "centre" })
-      .webp({ quality: 82 })
-      .toBuffer();
+    const image = sharp(Buffer.from(await file.arrayBuffer())).rotate();
+    if (preset.width && preset.height) {
+      image.resize(preset.width, preset.height, { fit: "cover", position: "centre" });
+    }
+    body = await image.webp({ quality: folder === "owner-documents" ? 92 : 82 }).toBuffer();
   } catch {
     throw new ImageUploadError("Tệp ảnh không hợp lệ hoặc đã bị hỏng", 400);
   }

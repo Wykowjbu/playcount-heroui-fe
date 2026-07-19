@@ -191,7 +191,6 @@ function InvitationsTab() {
   const [invitations, setInvitations] = useState<MatchInvitationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const actionLock = useRef<number | null>(null);
 
@@ -216,12 +215,11 @@ function InvitationsTab() {
     if (actionLock.current !== null) return;
     actionLock.current = invitationId;
     setActionLoading(invitationId);
-    setActionError(null);
     try {
       await respondToInvitation(invitationId, status);
       await fetchInvitations();
-    } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : "Không thể phản hồi lời mời");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       actionLock.current = null;
       setActionLoading(null);
@@ -249,12 +247,6 @@ function InvitationsTab() {
 
   return (
     <div className="space-y-3">
-      {actionError && (
-        <Alert status="danger">
-          <Alert.Indicator />
-          <Alert.Content><Alert.Title>{actionError}</Alert.Title></Alert.Content>
-        </Alert>
-      )}
       {invitations.map((inv) => {
         const invCfg = getStatusConfig("invitation", inv.status);
         return (

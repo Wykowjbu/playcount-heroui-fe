@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   Button,
-  Alert,
   Checkbox,
   Description,
   FieldError,
@@ -13,12 +12,12 @@ import {
   Link,
   Separator,
   TextField,
+  toast,
   Tabs,
 } from "@heroui/react";
 import { Eye, EyeSlash } from "@gravity-ui/icons";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
   const [tab, setTab] = useState<"login" | "register">("login");
@@ -83,21 +82,16 @@ export default function LoginPage() {
 function LoginForm() {
   const { loginWithRedirect } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
     try {
       const redirectTo = new URLSearchParams(window.location.search).get("redirect") ?? undefined;
       await loginWithRedirect({ identifier: data.email as string, password: data.password as string }, redirectTo);
-    } catch (err: unknown) {
-      const msg = err instanceof ApiError && err.errors.length > 0
-        ? err.errors[0]
-        : err instanceof Error ? err.message : "Đăng nhập thất bại";
-      setError(msg);
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setIsLoading(false);
     }
@@ -105,8 +99,6 @@ function LoginForm() {
 
   return (
     <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-      {error && <FormError>{error}</FormError>}
-
       <TextField isRequired className="w-full" name="email" type="email">
         <Label>Email</Label>
         <Input placeholder="name@example.com" />
@@ -141,15 +133,13 @@ function LoginForm() {
 function RegisterForm() {
   const { register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
     setIsLoading(true);
     const data = Object.fromEntries(new FormData(e.currentTarget));
     if (data.password !== data.confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp");
+      toast.danger("Mật khẩu xác nhận không khớp");
       setIsLoading(false);
       return;
     }
@@ -161,11 +151,8 @@ function RegisterForm() {
         phoneNumber: data.phoneNumber as string,
         role: "Player",
       });
-    } catch (err: unknown) {
-      const msg = err instanceof ApiError && err.errors.length > 0
-        ? err.errors[0]
-        : err instanceof Error ? err.message : "Đăng ký thất bại";
-      setError(msg);
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setIsLoading(false);
     }
@@ -173,8 +160,6 @@ function RegisterForm() {
 
   return (
     <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-      {error && <FormError>{error}</FormError>}
-
       <TextField isRequired className="w-full" name="fullName">
         <Label>Họ và tên</Label>
         <Input placeholder="Nguyễn Văn A" />
@@ -227,10 +212,6 @@ function RegisterForm() {
       </Button>
     </Form>
   );
-}
-
-function FormError({ children }: { children: string }) {
-  return <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Description>{children}</Alert.Description></Alert.Content></Alert>;
 }
 
 function PasswordField({ label, ...props }: React.ComponentProps<typeof TextField> & { label: string }) {

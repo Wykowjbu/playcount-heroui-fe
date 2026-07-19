@@ -89,8 +89,8 @@ function SportsContent() {
       }
       await loadSports();
       setModalOpen(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Thao tác thất bại");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setActionLoading(false);
     }
@@ -101,8 +101,8 @@ function SportsContent() {
     try {
       await toggleSportActive(id);
       await loadSports();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Thao tác thất bại");
+    } catch {
+      // apiFetch displays the backend message in a toast.
     } finally {
       setToggleLoading(null);
     }

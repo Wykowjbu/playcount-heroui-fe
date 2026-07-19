@@ -85,7 +85,7 @@ function FavoritesContent() {
       loadInFlightRef.current = null;
       setVenues((prev) => prev.filter((v) => v.id !== venueId));
     } catch {
-      setError("Không thể xóa khỏi yêu thích");
+      // apiFetch displays the backend message in a toast.
     } finally {
       removingIdsRef.current.delete(venueId);
       setRemovingIds(new Set(removingIdsRef.current));

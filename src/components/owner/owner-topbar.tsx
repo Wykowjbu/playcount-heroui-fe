@@ -10,9 +10,10 @@ interface TopbarProps {
   onToggleSidebar: () => void;
   sidebarCollapsed: boolean;
   activeItem?: string;
+  ownerStatus?: string | null;
 }
 
-export function OwnerTopbar({ activeItem, onToggleSidebar }: TopbarProps) {
+export function OwnerTopbar({ activeItem, ownerStatus, onToggleSidebar }: TopbarProps) {
   const { user } = useAuth();
 
   return (
@@ -22,7 +23,7 @@ export function OwnerTopbar({ activeItem, onToggleSidebar }: TopbarProps) {
           <Button className="lg:hidden" isIconOnly variant="ghost" aria-label="Mở menu điều hướng"><Bars className="w-5 h-5" /></Button>
           <Drawer.Backdrop>
             <Drawer.Content placement="left" className="w-[280px]">
-              <Drawer.Dialog><Drawer.Body className="p-0"><OwnerSidebar mobile collapsed={false} activeItem={activeItem} /></Drawer.Body></Drawer.Dialog>
+            <Drawer.Dialog><Drawer.Body className="p-0"><OwnerSidebar mobile collapsed={false} activeItem={activeItem} ownerStatus={ownerStatus} /></Drawer.Body></Drawer.Dialog>
             </Drawer.Content>
           </Drawer.Backdrop>
         </Drawer>
@@ -42,6 +43,7 @@ export function OwnerTopbar({ activeItem, onToggleSidebar }: TopbarProps) {
         <NotificationDropdown />
 
         <Avatar size="sm">
+          {user?.avatar ? <Avatar.Image src={user.avatar} alt={user.fullName} /> : null}
           <Avatar.Fallback>
             {user?.fullName?.charAt(0)?.toUpperCase() ?? "O"}
           </Avatar.Fallback>

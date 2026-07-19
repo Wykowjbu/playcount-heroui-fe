@@ -38,6 +38,7 @@ interface SidebarProps {
   collapsed: boolean;
   activeItem?: string;
   mobile?: boolean;
+  ownerStatus?: string | null;
 }
 
 function SidebarLabel({ collapsed, children }: { collapsed: boolean; children: ReactNode }) {
@@ -57,7 +58,7 @@ function SidebarLabel({ collapsed, children }: { collapsed: boolean; children: R
   );
 }
 
-export function OwnerSidebar({ collapsed, activeItem, mobile = false }: SidebarProps) {
+export function OwnerSidebar({ collapsed, activeItem, mobile = false, ownerStatus }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
@@ -78,6 +79,7 @@ export function OwnerSidebar({ collapsed, activeItem, mobile = false }: SidebarP
           style={{ transitionTimingFunction: EASE }}
         >
           <Avatar size="sm">
+            {user?.avatar ? <Avatar.Image src={user.avatar} alt={user.fullName} /> : null}
             <Avatar.Fallback>
               {user?.fullName?.charAt(0)?.toUpperCase() ?? "O"}
             </Avatar.Fallback>
@@ -100,8 +102,9 @@ export function OwnerSidebar({ collapsed, activeItem, mobile = false }: SidebarP
 
         {/* Navigation */}
         <nav aria-label="Owner navigation" className="flex flex-col gap-1 mt-4">
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter((item) => ownerStatus === "Approved" || item.id === "dashboard").map((item) => {
             const active = isActiveItem(item) || activeItem === item.id;
+            const label = item.id === "dashboard" && ownerStatus !== "Approved" ? "Thiết lập tài khoản" : item.label;
             return (
               <Link
                 key={item.id}
@@ -117,7 +120,7 @@ export function OwnerSidebar({ collapsed, activeItem, mobile = false }: SidebarP
                 aria-current={active ? "page" : undefined}
               >
                 <item.icon className="w-5 h-5 shrink-0" />
-                <SidebarLabel collapsed={collapsed}>{item.label}</SidebarLabel>
+                <SidebarLabel collapsed={collapsed}>{label}</SidebarLabel>
               </Link>
             );
           })}
