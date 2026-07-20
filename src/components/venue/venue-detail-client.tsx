@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -46,6 +47,7 @@ import type {
 import { formatDate, formatVnd } from "@/lib/utils/format";
 import { getVenueAvailability } from "@/lib/api/discovery";
 import { getBookableDurations, getScheduleSlotIndexes } from "@/lib/utils/player-flow";
+import { orderReviewImages } from "@/lib/utils/review-images";
 
 // ─── Props ───
 interface Props {
@@ -642,6 +644,21 @@ function ReviewsTab({ ratings, reviews }: { ratings: RatingStatsDto; reviews: Re
                 <span className="text-xs text-[var(--muted)]">{formatDate(r.createdAt)}</span>
               </div>
               {r.reviewText && <p className="text-sm text-[var(--muted)]">{r.reviewText}</p>}
+              {r.images?.length > 0 && (
+                <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-3">
+                  {orderReviewImages(r.images).map((image) => (
+                    <Image
+                      key={image.id}
+                      unoptimized
+                      width={240}
+                      height={240}
+                      className="aspect-square w-full rounded-xl border border-[var(--border)] object-cover"
+                      src={image.imageUrl}
+                      alt={`Ảnh đánh giá của ${r.playerName}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}

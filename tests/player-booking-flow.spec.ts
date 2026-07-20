@@ -290,6 +290,13 @@ test("booking detail follows a trusted PayOS checkout URL", async ({ page }) => 
   await expect(page).toHaveURL("https://img.payos.vn/checkout/detail");
 });
 
+test("public venue reviews display attached images", async ({ page }) => {
+  await page.goto("/venues/1");
+  await page.getByRole("tab", { name: "Đánh giá" }).click();
+
+  await expect(page.getByAltText("Ảnh đánh giá của Bùi Khánh Vân").first()).toBeVisible();
+});
+
 test("review images upload, persist, refetch, and delete after confirmation", async ({ page }) => {
   await authenticate(page);
   await page.addInitScript(() => {
