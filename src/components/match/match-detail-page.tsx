@@ -523,14 +523,22 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
               </Button>
             )}
             {canCancelMatch && (
-              <Button
-                variant="danger"
-                className="min-h-11"
-                isDisabled={actionLoading}
-                onPress={() => setConfirmation({ kind: "cancel" })}
-              >
-                Hủy kèo
-              </Button>
+              <>
+                <Link
+                  href={`/matches/${matchId}/edit`}
+                  className={buttonVariants({ variant: "outline" }) + " min-h-11"}
+                >
+                  Chỉnh sửa kèo
+                </Link>
+                <Button
+                  variant="danger"
+                  className="min-h-11"
+                  isDisabled={actionLoading}
+                  onPress={() => setConfirmation({ kind: "cancel" })}
+                >
+                  Hủy kèo
+                </Button>
+              </>
             )}
           </div>
 

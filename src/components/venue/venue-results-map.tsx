@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Alert, Button, Card, Skeleton } from "@heroui/react";
 import ArrowLeft from "@gravity-ui/icons/ArrowLeft";
 import MapPin from "@gravity-ui/icons/MapPin";
-import { loadMapbox, type MapInstance, type MarkerInstance } from "@/lib/mapbox";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import type { DiscoveryVenue } from "@/lib/types/discovery";
 
 interface Props {
@@ -23,8 +24,8 @@ export function VenueResultsMap({ venues, onShowList }: Props) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
   const mapNode = useRef<HTMLDivElement>(null);
-  const map = useRef<MapInstance | null>(null);
-  const markers = useRef<MarkerInstance[]>([]);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const markers = useRef<mapboxgl.Marker[]>([]);
   const markerElements = useRef(new Map<string, HTMLButtonElement>());
   const selectedId = useRef(selected?.id);
 
@@ -54,8 +55,7 @@ export function VenueResultsMap({ venues, onShowList }: Props) {
     let failedMap: (() => void) | null = null;
     const nextMarkerElements = new Map<string, HTMLButtonElement>();
     setStatus("loading");
-    loadMapbox().then((mapboxgl) => {
-      if (disposed || !mapNode.current) return;
+    try {
       mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN!;
       const first = mappedVenues[0];
       const nextMap = new mapboxgl.Map({
@@ -75,23 +75,23 @@ export function VenueResultsMap({ venues, onShowList }: Props) {
       nextMap.addControl(new mapboxgl.NavigationControl());
       map.current = nextMap;
       markers.current = mappedVenues.map((venue) => {
-        const marker = document.createElement("button");
-        marker.type = "button";
-        marker.ariaLabel = `Chọn ${venue.name}`;
-        marker.ariaPressed = String(venue.id === selectedId.current);
-        marker.className = "size-11 cursor-pointer rounded-full border-2 border-[var(--surface)] bg-[var(--accent)] text-[var(--accent-foreground)] shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
-        marker.innerHTML = '<span aria-hidden="true">●</span>';
-        marker.addEventListener("click", () => setSelected(venue));
-        nextMarkerElements.set(venue.id, marker);
-        return new mapboxgl.Marker(marker).setLngLat([venue.longitude!, venue.latitude!]).addTo(nextMap);
+        const el = document.createElement("button");
+        el.type = "button";
+        el.ariaLabel = `Chọn ${venue.name}`;
+        el.ariaPressed = String(venue.id === selectedId.current);
+        el.className = "size-11 cursor-pointer rounded-full border-2 border-[var(--surface)] bg-[var(--accent)] text-[var(--accent-foreground)] shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
+        el.innerHTML = '<span aria-hidden="true">●</span>';
+        el.addEventListener("click", () => setSelected(venue));
+        nextMarkerElements.set(venue.id, el);
+        return new mapboxgl.Marker(el).setLngLat([venue.longitude!, venue.latitude!]).addTo(nextMap);
       });
       markerElements.current = nextMarkerElements;
-      if (mappedVenues.length > 1 && mapboxgl.LngLatBounds && nextMap.fitBounds) {
+      if (mappedVenues.length > 1) {
         const bounds = new mapboxgl.LngLatBounds();
         mappedVenues.forEach((venue) => bounds.extend([venue.longitude!, venue.latitude!]));
         nextMap.fitBounds(bounds, { padding: 52, maxZoom: 14 });
       }
-    }).catch(() => !disposed && setStatus("error"));
+    } catch { if (!disposed) setStatus("error"); }
 
     return () => {
       disposed = true;
@@ -99,7 +99,7 @@ export function VenueResultsMap({ venues, onShowList }: Props) {
         map.current.off("load", loadedMap);
         map.current.off("error", failedMap);
       }
-      markers.current.forEach((marker) => marker.remove?.());
+      markers.current.forEach((marker) => marker.remove());
       markers.current = [];
       nextMarkerElements.clear();
       map.current?.remove();

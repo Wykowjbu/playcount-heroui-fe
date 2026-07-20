@@ -32,6 +32,27 @@ function slots() {
   });
 }
 
+function fullDaySlots(unpricedIndexes: number[] = []) {
+  const unpriced = new Set(unpricedIndexes);
+  const result = Array.from({ length: 48 }, (_, index) => {
+    const start = new Date(Date.UTC(2026, 6, 20, 0, index * 30));
+    const status = index === 15 ? "Held" : index === 16 ? "Maintenance" : index === 17 ? "Booked" : "Available";
+    return {
+      startAt: start.toISOString().replace(".000Z", "+00:00"),
+      endAt: new Date(start.getTime() + 30 * 60_000).toISOString().replace(".000Z", "+00:00"),
+      status,
+      estimatedPrice: status === "Available" && !unpriced.has(index) ? 50_000 : null,
+      canStartBooking: false,
+    };
+  });
+  result.forEach((slot, index) => {
+    const next = result[index + 1];
+    slot.canStartBooking = slot.status === "Available" && slot.estimatedPrice != null
+      && next?.status === "Available" && next.estimatedPrice != null;
+  });
+  return result;
+}
+
 async function authenticate(page: Page) {
   await page.addInitScript(() => localStorage.setItem("pc_auth", JSON.stringify({
     id: 1, email: "player@example.test", role: "player", fullName: "Player", accessToken: "test", refreshToken: "test",
@@ -446,24 +467,40 @@ test("review save remains successful when gallery refetch fails", async ({ page 
   await expect(page.getByText("Đánh giá đã được lưu nhưng chưa thể làm mới dữ liệu")).toBeVisible();
 });
 
-test("venue availability booking uses backend slots and builds checkout context", async ({ page }) => {
+test("venue schedule stays inside its column when a full day loads", async ({ page }) => {
+  await page.route("**/api/venues/1/availability?date=2026-07-20", (route) => route.fulfill(api({
+    date: "2026-07-20",
+    venue: { id: 1, name: venue.name, address: venue.address, openTime: "00:00:00", closeTime: "23:59:59", isClosed: false },
+    courts: [{ id: 1, name: court.name, sportId: 1, sportName: court.sportName, slots: fullDaySlots() }],
+  })));
+
+  await page.goto("/venues/1");
+  await page.getByLabel("Môn thể thao").click();
+  await page.getByRole("option", { name: "Cầu lông" }).click();
+  await page.getByRole("button", { name: "Calendar Ngày chơi" }).click();
+  await page.getByRole("gridcell", { name: /Monday, July 20,/ }).click();
+  await expect(page.getByRole("button", { name: /09:00.*Trống/ })).toBeVisible();
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280);
+  await expect(page.getByRole("heading", { name: "Thông tin đặt sân" })).toBeInViewport();
+});
+
+test("dragging priced available slots selects the complete booking range", async ({ page }) => {
   // The venue page is server-rendered from the read-only seeded venue/court bootstrap.
   // Every browser-side availability or mutation endpoint is route-fixtured in this file.
   await page.route("**/api/venues/1/availability?date=2026-07-20", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 200));
     await route.fulfill(api({
       date: "2026-07-20",
-      venue: { id: 1, name: venue.name, address: venue.address, openTime: "07:00:00", closeTime: "11:00:00", isClosed: false },
-      courts: [{ id: 1, name: court.name, sportId: 1, sportName: court.sportName, slots: slots() }],
+      venue: { id: 1, name: venue.name, address: venue.address, openTime: "00:00:00", closeTime: "23:59:59", isClosed: false },
+      courts: [{ id: 1, name: court.name, sportId: 1, sportName: court.sportName, slots: fullDaySlots() }],
     }));
   });
 
   await page.goto("/venues/1");
   await page.getByLabel("Môn thể thao").click();
   await page.getByRole("option", { name: "Cầu lông" }).click();
-  await page.getByLabel("Sân", { exact: true }).click();
-  await page.getByRole("option", { name: court.name }).click();
-  await page.getByRole("group", { name: "Chọn ngày chơi" }).getByRole("button").click();
+  await page.getByRole("button", { name: "Calendar Ngày chơi" }).click();
   await page.getByRole("gridcell", { name: /Monday, July 20,/ }).click();
 
   await expect(page.getByText("Đang tải lịch trống")).toBeVisible();
@@ -471,11 +508,14 @@ test("venue availability booking uses backend slots and builds checkout context"
   await expect(page.getByRole("button", { name: /08:00.*Bảo trì/ })).toBeDisabled();
   await expect(page.getByRole("button", { name: /08:30.*Đã đặt/ })).toBeDisabled();
   await page.getByRole("button", { name: /09:00.*Trống/ }).click();
-
-  await expect(page.getByText("Thông tin đặt sân")).toBeVisible();
   await expect(page.getByText("09:00–10:00")).toBeVisible();
   await expect(page.getByLabel("Thời lượng")).toContainText("60 phút");
-  await expect(page.getByText("100.000đ")).toBeVisible();
+  await page.getByRole("button", { name: /09:00.*Trống/ }).dragTo(page.getByRole("button", { name: /10:00.*Trống/ }));
+
+  await expect(page.getByText("Thông tin đặt sân")).toBeVisible();
+  await expect(page.getByText("09:00–10:30")).toBeVisible();
+  await expect(page.getByLabel("Thời lượng")).toContainText("90 phút");
+  await expect(page.getByText("150.000đ")).toBeVisible();
   await page.getByRole("button", { name: "TIẾP TỤC ĐẶT SÂN" }).click();
   await expect(page).toHaveURL(/\/bookings\/checkout\?/);
   const checkout = new URL(page.url());
@@ -484,10 +524,52 @@ test("venue availability booking uses backend slots and builds checkout context"
     court: "1",
     date: "2026-07-20",
     time: "09:00",
-    duration: "60",
+    duration: "90",
     startAt: "2026-07-20T09:00:00+00:00",
-    endAt: "2026-07-20T10:00:00+00:00",
+    endAt: "2026-07-20T10:30:00+00:00",
   });
+});
+
+test("available slots without pricing are dimmed and cannot start a selection", async ({ page }) => {
+  await page.route("**/api/venues/1/availability?date=2026-07-20", (route) => route.fulfill(api({
+    date: "2026-07-20",
+    venue: { id: 1, name: venue.name, address: venue.address, openTime: "07:00:00", closeTime: "11:00:00", isClosed: false },
+    courts: [{ id: 1, name: court.name, sportId: 1, sportName: court.sportName, slots: fullDaySlots([18, 19]) }],
+  })));
+
+  await page.goto("/venues/1");
+  await page.getByLabel("Môn thể thao").click();
+  await page.getByRole("option", { name: "Cầu lông" }).click();
+  await page.getByRole("button", { name: "Calendar Ngày chơi" }).click();
+  await page.getByRole("gridcell", { name: /Monday, July 20,/ }).click();
+
+  const unpricedSlot = page.getByRole("button", { name: /09:00.*Trống/ });
+  await expect(unpricedSlot).toBeDisabled();
+  expect(Number(await unpricedSlot.evaluate((element) => getComputedStyle(element).opacity))).toBeLessThan(0.6);
+});
+
+test("venue booking calendar disables dates before today", async ({ page }) => {
+  await page.goto("/venues/1");
+  await page.getByLabel("Môn thể thao").click();
+  await page.getByRole("option", { name: "Cầu lông" }).click();
+  await page.getByRole("button", { name: "Calendar Ngày chơi" }).click();
+
+  await expect(page.getByRole("gridcell", { name: /Sunday, July 19,/ })).toHaveAttribute("aria-disabled", "true");
+});
+
+test("venue schedule legend shows a swatch for every status", async ({ page }) => {
+  await page.route("**/api/venues/1/availability?date=2026-07-20", (route) => route.fulfill(api({
+    date: "2026-07-20",
+    venue: { id: 1, name: venue.name, address: venue.address, openTime: "07:00:00", closeTime: "11:00:00", isClosed: false },
+    courts: [{ id: 1, name: court.name, sportId: 1, sportName: court.sportName, slots: fullDaySlots() }],
+  })));
+  await page.goto("/venues/1");
+  await page.getByLabel("Môn thể thao").click();
+  await page.getByRole("option", { name: "Cầu lông" }).click();
+  await page.getByRole("button", { name: "Calendar Ngày chơi" }).click();
+  await page.getByRole("gridcell", { name: /Monday, July 20,/ }).click();
+
+  await expect(page.getByLabel("Chú thích trạng thái lịch").locator(":scope > span > span")).toHaveCount(4);
 });
 
 test("venue availability booking explains when 48 slots have no bookable start", async ({ page }) => {

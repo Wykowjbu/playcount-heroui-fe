@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -20,7 +20,7 @@ import {
   Skeleton,
   Tabs,
 } from "@heroui/react";
-import { parseDate, type DateValue } from "@internationalized/date";
+import { getLocalTimeZone, parseDate, today, type DateValue } from "@internationalized/date";
 import { SiteHeader } from "@/components/layout/site-header";
 import type { Key } from "@heroui/react";
 import {
@@ -208,9 +208,9 @@ export function VenueDetailClient({ venueId, venue, courts, openingHours, rating
         <HeroGallery images={venueImages} name={venue.name} />
 
         {/* ─── GRID ─── */}
-        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="mt-8 grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* LEFT */}
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <div className="flex flex-wrap gap-2">
               <Chip color={isOpen ? "success" : "default"}>
                 {isOpen ? <CircleCheckFill className="mr-1 inline size-3.5" /> : <Clock className="mr-1 inline size-3.5" />}
@@ -433,6 +433,50 @@ function CourtsTab({
   const selectedStartIndex = selectedCourt?.slots.findIndex(({ startAt }) => startAt === selectedStartAt) ?? -1;
   const durations = selectedCourt && selectedStartIndex >= 0 ? getBookableDurations(selectedCourt.slots, selectedStartIndex) : [];
   const duration = Number(selectedDuration);
+  const [dragRange, setDragRange] = useState<{ courtId: number; startIndex: number; endIndex: number } | null>(null);
+  const dragRef = useRef<{ court: VenueAvailabilityResponseDto["courts"][number]; startIndex: number; endIndex: number } | null>(null);
+  const suppressClick = useRef(false);
+
+  function selectRange(court: VenueAvailabilityResponseDto["courts"][number], startIndex: number, minutes: number) {
+    if (!getBookableDurations(court.slots, startIndex).includes(minutes)) return;
+    onSelectCourt(court.id);
+    onStartAtChange(court.slots[startIndex].startAt);
+    onDurationChange(String(minutes));
+  }
+
+  function handleSlotPointerDown(court: VenueAvailabilityResponseDto["courts"][number], index: number) {
+    dragRef.current = { court, startIndex: index, endIndex: index };
+    setDragRange({ courtId: court.id, startIndex: index, endIndex: index });
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const target = (document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null)?.closest<HTMLElement>("[data-booking-slot]");
+      if (!target || Number(target.dataset.courtId) !== court.id) return;
+      const endIndex = Number(target.dataset.slotIndex);
+      if (!Number.isInteger(endIndex)) return;
+      const startIndex = Math.min(index, endIndex);
+      const minutes = (Math.abs(endIndex - index) + 1) * 30;
+      if (minutes > 30 && !getBookableDurations(court.slots, startIndex).includes(minutes)) return;
+      dragRef.current = { court, startIndex: index, endIndex };
+      setDragRange({ courtId: court.id, startIndex: index, endIndex });
+    };
+
+    const handlePointerUp = () => {
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerUp);
+      const drag = dragRef.current;
+      if (drag && drag.endIndex !== drag.startIndex) {
+        const startIndex = Math.min(drag.startIndex, drag.endIndex);
+        selectRange(drag.court, startIndex, (Math.abs(drag.endIndex - drag.startIndex) + 1) * 30);
+        suppressClick.current = true;
+        window.setTimeout(() => { suppressClick.current = false; }, 0);
+      }
+      dragRef.current = null;
+      setDragRange(null);
+    };
+
+    document.addEventListener("pointermove", handlePointerMove);
+    document.addEventListener("pointerup", handlePointerUp, { once: true });
+  }
 
   const statusClass: Record<string, string> = {
     Available: "!border-[var(--default-300)] !bg-[var(--surface)] hover:!border-[var(--accent)] hover:!bg-[var(--accent)]/10",
@@ -450,7 +494,7 @@ function CourtsTab({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <Select className="w-full" placeholder="Chọn môn thể thao" value={selectedSportId} onChange={onSportChange}>
           <Label>Môn thể thao</Label>
@@ -458,14 +502,14 @@ function CourtsTab({
           <Select.Popover><ListBox>{sports.map(([id, name]) => <ListBox.Item id={id} key={id} textValue={name}>{name}<ListBox.ItemIndicator /></ListBox.Item>)}</ListBox></Select.Popover>
         </Select>
 
-        <DatePicker className="w-full" value={selectedDate} onChange={onDateChange} isDisabled={!selectedSportId}>
+        <DatePicker className="w-full" value={selectedDate} onChange={onDateChange} minValue={today(getLocalTimeZone())} isDisabled={!selectedSportId}>
           <Label>Ngày chơi</Label>
           <DateField.Group>
             <DateField.Input>{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
             <DateField.Suffix><DatePicker.Trigger><CalendarIcon className="size-4" /></DatePicker.Trigger></DateField.Suffix>
           </DateField.Group>
           <DatePicker.Popover>
-            <Calendar aria-label="Chọn ngày chơi">
+            <Calendar aria-label="Chọn ngày chơi" minValue={today(getLocalTimeZone())}>
               <Calendar.Header>
                 <Calendar.YearPickerTrigger><Calendar.YearPickerTriggerHeading /><Calendar.YearPickerTriggerIndicator /></Calendar.YearPickerTrigger>
                 <Calendar.NavButton slot="previous" /><Calendar.NavButton slot="next" />
@@ -491,7 +535,7 @@ function CourtsTab({
             <p className="font-medium">Lịch sân</p>
             <p className="text-xs text-[var(--muted)]">Cuộn ngang để xem giờ</p>
           </div>
-          <div role="group" aria-label="Chọn sân và giờ bắt đầu" className="overflow-x-auto pb-2">
+          <div role="group" aria-label="Chọn sân và khoảng giờ" className="max-w-full overflow-x-auto pb-2">
             <div className="space-y-2" style={{ minWidth: 150 + scheduleIndexes.length * 44 }}>
               <div className="grid text-xs text-[var(--muted)]" style={{ gridTemplateColumns: `150px repeat(${scheduleIndexes.length}, 44px)` }}>
                 <span />
@@ -503,16 +547,23 @@ function CourtsTab({
                   {scheduleIndexes.map((slotIndex) => {
                     const slot = court.slots[slotIndex];
                     const choices = getBookableDurations(court.slots, slotIndex);
-                    const selected = selectedCourtId === court.id && selectedStartIndex >= 0 && slotIndex >= selectedStartIndex && slotIndex < selectedStartIndex + duration / 30;
+                    const dragSelected = dragRange?.courtId === court.id && slotIndex >= Math.min(dragRange.startIndex, dragRange.endIndex) && slotIndex <= Math.max(dragRange.startIndex, dragRange.endIndex);
+                    const selected = dragSelected || (selectedCourtId === court.id && selectedStartIndex >= 0 && slotIndex >= selectedStartIndex && slotIndex < selectedStartIndex + duration / 30);
                     const enabled = slot.status === "Available" && slot.canStartBooking && choices.length > 0;
                     const defaultDuration = choices.includes(60) ? 60 : choices[0];
-                    return <Button key={slot.startAt} size="sm" aria-label={`${court.name}, ${slot.startAt.slice(11, 16)}: ${statusLabel[slot.status] ?? slot.status}`} aria-pressed={selected} isDisabled={!enabled} onPress={() => { onSelectCourt(court.id); onStartAtChange(slot.startAt); onDurationChange(String(defaultDuration)); }} className={`!h-11 !w-11 !min-w-11 !rounded-sm !border !p-0 disabled:!opacity-100 ${selected ? "!border-[var(--accent)] !bg-[var(--accent)] !text-[var(--accent-foreground)]" : statusClass[slot.status] ?? statusClass.Closed}`} />;
+                    const unbookableAvailable = slot.status === "Available" && !enabled;
+                    return <button key={slot.startAt} type="button" data-booking-slot data-court-id={court.id} data-slot-index={slotIndex} aria-label={`${court.name}, ${slot.startAt.slice(11, 16)}: ${statusLabel[slot.status] ?? slot.status}`} aria-pressed={selected} disabled={!enabled} onPointerDown={enabled ? () => handleSlotPointerDown(court, slotIndex) : undefined} onClick={enabled ? () => { if (suppressClick.current) return; selectRange(court, slotIndex, defaultDuration); } : undefined} className={`h-11 w-11 min-w-11 touch-none rounded-sm border p-0 ${enabled ? "cursor-pointer" : "cursor-not-allowed"} ${unbookableAvailable ? "opacity-35" : "opacity-100"} ${selected ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-foreground)]" : statusClass[slot.status] ?? statusClass.Closed}`} />;
                   })}
                 </div>
               ))}
             </div>
           </div>
-          <div className="flex flex-wrap gap-3 text-xs text-[var(--muted)]" aria-label="Chú thích trạng thái lịch"><span>Trống</span><span>Đã đặt</span><span>Đang giữ</span><span>Bảo trì</span></div>
+          <div className="flex flex-wrap gap-4 text-xs text-[var(--muted)]" aria-label="Chú thích trạng thái lịch">
+            <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm border border-[var(--default-300)] bg-[var(--surface)]" />Trống</span>
+            <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm border border-red-300 bg-red-400" />Đã đặt</span>
+            <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm border border-amber-300 bg-amber-300" />Đang giữ</span>
+            <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm border border-[var(--muted)]/30 bg-[repeating-linear-gradient(135deg,transparent,transparent_2px,rgba(0,0,0,.12)_2px,rgba(0,0,0,.12)_4px)]" />Bảo trì</span>
+          </div>
         </div>
       )}
 

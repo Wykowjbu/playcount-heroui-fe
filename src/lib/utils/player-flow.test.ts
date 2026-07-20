@@ -15,15 +15,25 @@ test("local booking timestamps preserve wall time and format the UTC offset", ()
 
 test("bookable durations include only contiguous 30-minute available slots", () => {
   const slots = [
-    { startAt: "2026-07-19T08:00:00+07:00", endAt: "2026-07-19T08:30:00+07:00", status: "Available" as const, estimatedPrice: null, canStartBooking: true },
-    { startAt: "2026-07-19T08:30:00+07:00", endAt: "2026-07-19T09:00:00+07:00", status: "Available" as const, estimatedPrice: null, canStartBooking: false },
-    { startAt: "2026-07-19T09:00:00+07:00", endAt: "2026-07-19T09:30:00+07:00", status: "Available" as const, estimatedPrice: null, canStartBooking: true },
+    { startAt: "2026-07-19T08:00:00+07:00", endAt: "2026-07-19T08:30:00+07:00", status: "Available" as const, estimatedPrice: 50_000, canStartBooking: true },
+    { startAt: "2026-07-19T08:30:00+07:00", endAt: "2026-07-19T09:00:00+07:00", status: "Available" as const, estimatedPrice: 50_000, canStartBooking: false },
+    { startAt: "2026-07-19T09:00:00+07:00", endAt: "2026-07-19T09:30:00+07:00", status: "Available" as const, estimatedPrice: 50_000, canStartBooking: true },
     { startAt: "2026-07-19T09:30:00+07:00", endAt: "2026-07-19T10:00:00+07:00", status: "Booked" as const, estimatedPrice: null, canStartBooking: false },
   ];
 
   assert.deepEqual(getBookableDurations(slots, 0), [60, 90]);
   assert.deepEqual(getBookableDurations(slots, 1), []);
   assert.deepEqual(getBookableDurations(slots, 3), []);
+});
+
+test("bookable durations stop before an available slot without pricing", () => {
+  const slots = [
+    { startAt: "2026-07-19T08:00:00+07:00", endAt: "2026-07-19T08:30:00+07:00", status: "Available" as const, estimatedPrice: 50_000, canStartBooking: true },
+    { startAt: "2026-07-19T08:30:00+07:00", endAt: "2026-07-19T09:00:00+07:00", status: "Available" as const, estimatedPrice: 50_000, canStartBooking: false },
+    { startAt: "2026-07-19T09:00:00+07:00", endAt: "2026-07-19T09:30:00+07:00", status: "Available" as const, estimatedPrice: null, canStartBooking: false },
+  ];
+
+  assert.deepEqual(getBookableDurations(slots, 0), [60]);
 });
 
 test("bookable durations stop at timestamp gaps and malformed slot lengths", () => {

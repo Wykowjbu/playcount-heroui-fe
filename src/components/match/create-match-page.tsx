@@ -11,7 +11,7 @@ import {
 import { type DateValue, Time, parseDate, today, getLocalTimeZone } from "@internationalized/date";
 import { SiteHeader } from "@/components/layout/site-header";
 import { PlayerGuard } from "@/lib/auth/guards";
-import { createMatch } from "@/lib/api/matches";
+import { createMatch, updateMatch, getMatchById } from "@/lib/api/matches";
 import { getAllSports } from "@/lib/api/discovery";
 import type { SportDto } from "@/lib/types/api";
 import ChevronLeft from "@gravity-ui/icons/ChevronLeft";
@@ -20,16 +20,17 @@ import type { Key } from "@heroui/react";
 import { VenueMapPicker } from "./venue-map-picker";
 import { toLocalIsoAtWallTime } from "@/lib/utils/player-flow";
 
-export function CreateMatchPage({ embedded = false, onSubmittingChange }: { embedded?: boolean; onSubmittingChange?: (submitting: boolean) => void }) {
+export function CreateMatchPage({ matchId, embedded = false, onSubmittingChange }: { matchId?: number; embedded?: boolean; onSubmittingChange?: (submitting: boolean) => void }) {
   return (
     <PlayerGuard>
-      <CreateMatchContent embedded={embedded} onSubmittingChange={onSubmittingChange} />
+      <CreateMatchContent matchId={matchId} embedded={embedded} onSubmittingChange={onSubmittingChange} />
     </PlayerGuard>
   );
 }
 
-function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolean; onSubmittingChange?: (submitting: boolean) => void }) {
+function CreateMatchContent({ matchId, embedded, onSubmittingChange }: { matchId?: number; embedded: boolean; onSubmittingChange?: (submitting: boolean) => void }) {
   const router = useRouter();
+  const isEdit = matchId != null;
 
   const [sports, setSports] = useState<SportDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,11 +71,29 @@ function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolea
 
   useEffect(() => {
     setMounted(true);
-    getAllSports()
-      .then(setSports)
+    Promise.all([
+      getAllSports(),
+      isEdit ? getMatchById(matchId!) : Promise.resolve(null),
+    ])
+      .then(([sportsData, match]) => {
+        setSports(sportsData);
+        if (match) {
+          setSportId(match.sportId);
+          setLocationDesc(match.locationDescription ?? "");
+          setCourtId(match.courtId);
+          setSelectedDate(parseDate(match.startAt.slice(0, 10)));
+          setStartTime(new Time(Number(match.startAt.slice(11, 13)), Number(match.startAt.slice(14, 16))));
+          setEndTime(new Time(Number(match.endAt.slice(11, 13)), Number(match.endAt.slice(14, 16))));
+          setMaxParticipants(match.maxParticipants);
+          setSkillMin(match.requiredSkillLevelMin != null ? String(match.requiredSkillLevelMin) : null);
+          setSkillMax(match.requiredSkillLevelMax != null ? String(match.requiredSkillLevelMax) : null);
+          setCostDesc(match.costDescription ?? "");
+          setDescription(match.description ?? "");
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [isEdit, matchId]);
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -122,20 +141,33 @@ function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolea
       const startAt = toLocalIsoAtWallTime(selectedDate!.toString(), time(startTime!));
       const endAt = toLocalIsoAtWallTime(selectedDate!.toString(), time(endTime!));
 
-      const match = await createMatch({
-        sportId: Number(sportId),
-        courtId: courtId ?? undefined,
-        locationDescription: locationDesc,
-        startAt,
-        endAt,
-        maxParticipants,
-        requiredSkillLevelMin: skillMin != null ? Number(skillMin) : undefined,
-        requiredSkillLevelMax: skillMax != null ? Number(skillMax) : undefined,
-        costDescription: costDesc || undefined,
-        description: description || undefined,
-      });
-
-      router.push(`/matches/${match.id}`);
+      if (isEdit) {
+        await updateMatch(matchId!, {
+          locationDescription: locationDesc,
+          startAt,
+          endAt,
+          maxParticipants,
+          requiredSkillLevelMin: skillMin != null ? Number(skillMin) : undefined,
+          requiredSkillLevelMax: skillMax != null ? Number(skillMax) : undefined,
+          costDescription: costDesc || undefined,
+          description: description || undefined,
+        });
+        router.push(`/matches/${matchId}`);
+      } else {
+        const match = await createMatch({
+          sportId: Number(sportId),
+          courtId: courtId ?? undefined,
+          locationDescription: locationDesc,
+          startAt,
+          endAt,
+          maxParticipants,
+          requiredSkillLevelMin: skillMin != null ? Number(skillMin) : undefined,
+          requiredSkillLevelMax: skillMax != null ? Number(skillMax) : undefined,
+          costDescription: costDesc || undefined,
+          description: description || undefined,
+        });
+        router.push(`/matches/${match.id}`);
+      }
     } catch {
       // apiFetch displays the backend message in a toast.
     } finally {
@@ -169,7 +201,7 @@ function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolea
           Quay lại
         </Link>}
 
-        {!embedded && <h1 className="mb-6 text-2xl font-bold text-[var(--foreground)]">Tạo kèo đấu mới</h1>}
+        {!embedded && <h1 className="mb-6 text-2xl font-bold text-[var(--foreground)]">{isEdit ? "Chỉnh sửa kèo đấu" : "Tạo kèo đấu mới"}</h1>}
 
         <Form id={formId} validationBehavior="aria" onSubmit={handleSubmit} className="space-y-6">
           <Card variant={embedded ? "transparent" : "default"}>
@@ -181,6 +213,7 @@ function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolea
                 value={sportId}
                 onChange={handleSportChange}
                 isInvalid={!!errors.sportId}
+                isDisabled={isEdit}
               >
                 <Label isRequired>Môn thể thao</Label>
                 <Select.Trigger>
@@ -391,7 +424,7 @@ function CreateMatchContent({ embedded, onSubmittingChange }: { embedded: boolea
             variant="primary"
             isDisabled={submitting}
           >
-            {submitting ? "Đang tạo kèo..." : "Tạo kèo đấu"}
+            {submitting ? (isEdit ? "Đang lưu..." : "Đang tạo kèo...") : (isEdit ? "Lưu thay đổi" : "Tạo kèo đấu")}
           </Button>}
         </Form>
       </main>
