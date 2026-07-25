@@ -46,7 +46,9 @@ function MatchDetailContent({ matchId }: { matchId: number }) {
   const actionLock = useRef(false);
   const actionRequest = useRef(0);
   const activeMatchId = useRef(matchId);
-  activeMatchId.current = matchId;
+  useEffect(() => {
+    activeMatchId.current = matchId;
+  }, [matchId]);
   const previousMatchId = useRef(matchId);
   const detailRequest = useRef(0);
   const candidateRequest = useRef(0);

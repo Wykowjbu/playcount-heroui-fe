@@ -187,7 +187,7 @@ export function VenueMapPicker({ sportId, className, onSelect }: Props) {
   useEffect(() => {
     if (!userLocation || !map.current) return;
     if (!venues.length) map.current.flyTo({ center: userLocation, zoom: 12 });
-  }, [userLocation]);
+  }, [userLocation, venues.length]);
 
   useEffect(() => {
     if (!selectedVenue) return;
@@ -320,7 +320,7 @@ export function VenueMapPicker({ sportId, className, onSelect }: Props) {
                         <span className="pr-2 text-sm font-medium">{court.name}<small className="block font-normal text-[var(--muted)]">{court.sportName}</small></span>
                         {scheduleSlots.map(({ index }) => {
                           const slot = court.slots[index];
-                          const isDragActive = isDragging.current && dragCourt?.id === court.id && dragStartIndex != null && dragEndIndex != null && index >= Math.min(dragStartIndex, dragEndIndex) && index <= Math.max(dragStartIndex, dragEndIndex);
+                          const isDragActive = !!dragCourt && dragCourt.id === court.id && dragStartIndex != null && dragEndIndex != null && index >= Math.min(dragStartIndex, dragEndIndex) && index <= Math.max(dragStartIndex, dragEndIndex);
                           const isSelected = selectedCourt?.id === court.id && selectedStartIndex != null && index >= selectedStartIndex && index < selectedStartIndex + (duration ?? 0) / 30;
                           const selected = isDragActive || isSelected;
                           const enabled = slot.status === "Available";
