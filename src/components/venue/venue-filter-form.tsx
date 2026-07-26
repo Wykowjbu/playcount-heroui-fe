@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
-  TextField,
   Input,
   Label,
-  Select,
   ListBox,
+  Select,
   Switch,
+  TextField,
 } from "@heroui/react";
 import type { Key } from "@heroui/react";
+import Magnifier from "@gravity-ui/icons/Magnifier";
+import MapPin from "@gravity-ui/icons/MapPin";
+import Star from "@gravity-ui/icons/Star";
 import Xmark from "@gravity-ui/icons/Xmark";
 
 export interface FilterValues {
@@ -47,7 +50,6 @@ export function VenueFilterForm({
   );
   const [isOpenNow, setIsOpenNow] = useState(values.isOpenNow);
 
-  // Sync from parent when values change (e.g. URL update)
   useEffect(() => {
     setKeyword(values.keyword);
     setSportId(values.sportId != null ? values.sportId : null);
@@ -62,40 +64,48 @@ export function VenueFilterForm({
     });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleApply();
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter") handleApply();
   };
 
   return (
-    <div className={compact ? "space-y-4" : "space-y-5"}>
+    <div className={compact ? "space-y-3" : "space-y-4"}>
       {showKeyword && (
         <TextField
           value={keyword}
           onChange={(value) => setKeyword(String(value))}
           onKeyDown={handleKeyDown}
-          aria-label="Từ khóa tìm kiếm"
+          aria-label="Khu vực hoặc tên sân"
         >
-          <Label>Từ khóa</Label>
-          <Input placeholder="Tên sân hoặc địa chỉ" />
+          <Label className="search-label">Khu vực hoặc tên sân</Label>
+          <div className="relative">
+            <span className="search-icon-badge">
+              <MapPin className="size-3.5" />
+            </span>
+            <Input className="search-control min-h-12 pl-11 text-[0.95rem]" placeholder="Nhập khu vực, tên sân" />
+          </div>
         </TextField>
       )}
 
       <Select
-        placeholder="Tất cả môn thể thao"
+        placeholder="Tất cả môn"
         selectedKey={sportId}
         onSelectionChange={(key) => setSportId(key)}
-        aria-label="Môn thể thao"
+        aria-label="Môn chơi"
       >
-        <Label>Môn thể thao</Label>
-        <Select.Trigger>
+        <Label className="search-label">Môn chơi</Label>
+        <Select.Trigger className="search-control flex min-h-12 items-center gap-2 px-3 text-[0.95rem]">
+          <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-[rgb(37_99_235_/_0.09)] text-[var(--accent)]">
+            <Star className="size-3.5" />
+          </span>
           <Select.Value />
           <Select.Indicator />
         </Select.Trigger>
-        <Select.Popover>
-          <ListBox>
-            {sports.map((s) => (
-              <ListBox.Item key={s.id} id={s.id} textValue={s.name}>
-                {s.name}
+        <Select.Popover className="search-popover">
+          <ListBox className="p-1">
+            {sports.map((sport) => (
+              <ListBox.Item key={sport.id} id={sport.id} textValue={sport.name} className="search-option">
+                {sport.name}
                 <ListBox.ItemIndicator />
               </ListBox.Item>
             ))}
@@ -103,8 +113,11 @@ export function VenueFilterForm({
         </Select.Popover>
       </Select>
 
-      <div className="flex items-center justify-between">
-        <Label className="text-sm">Đang mở cửa</Label>
+      <div className="flex min-h-12 items-center justify-between rounded-2xl border border-[var(--border)] bg-white px-3">
+        <div>
+          <Label className="text-sm font-semibold text-[var(--foreground)]">Đang mở cửa</Label>
+          <p className="text-xs text-[var(--muted)]">Chỉ hiện sân có thể đặt ngay</p>
+        </div>
         <Switch
           isSelected={isOpenNow}
           onChange={setIsOpenNow}
@@ -118,13 +131,14 @@ export function VenueFilterForm({
         </Switch>
       </div>
 
-      <div className="flex gap-2 pt-2">
-        <Button variant="outline" size="sm" onPress={onClear} className="flex-1">
-          <Xmark className="w-4 h-4 mr-1" />
-          Xóa bộ lọc
+      <div className="grid gap-2 pt-1 sm:grid-cols-2 lg:grid-cols-1">
+        <Button variant="primary" size="sm" onPress={handleApply} className="min-h-11">
+          <Magnifier className="mr-1 size-4" />
+          Tìm sân
         </Button>
-        <Button variant="primary" size="sm" onPress={handleApply} className="flex-1">
-          Áp dụng
+        <Button variant="outline" size="sm" onPress={onClear} className="min-h-11">
+          <Xmark className="mr-1 size-4" />
+          Xóa lọc
         </Button>
       </div>
     </div>

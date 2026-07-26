@@ -137,14 +137,13 @@ export function SiteHeader() {
     <>
       <header
         className={cn(
-          "sticky top-4 z-50 flex justify-center px-4 pointer-events-none",
+          "sticky top-3 z-50 flex justify-center px-3 pointer-events-none sm:top-4 sm:px-4",
         )}
       >
         <nav
           className={cn(
             "pointer-events-auto w-full max-w-5xl flex items-center justify-between gap-3",
-            "rounded-3xl border border-border px-5 py-2.5",
-            "bg-surface/95 backdrop-blur-md shadow-sm",
+            "glass-panel rounded-[1.25rem] px-3 py-2 sm:px-4",
           )}
         >
           {/* ---- Logo ---- */}
@@ -152,16 +151,10 @@ export function SiteHeader() {
             href="/"
             className="flex min-h-11 min-w-11 items-center gap-2 shrink-0 group"
           >
-            <span
-              className={cn(
-                "flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-foreground",
-                "font-bold text-sm tracking-tight",
-                "group-hover:ring-2 group-hover:ring-primary/40 transition-shadow",
-              )}
-            >
-              PC
+            <span className="brand-mark transition-transform group-hover:scale-105">
+              <span className="brand-mark__monogram">PC</span>
             </span>
-            <span className="font-bold text-lg hidden min-[480px]:block">
+            <span className="hidden text-lg font-extrabold tracking-tight text-[var(--foreground)] min-[480px]:block">
               PlayCourt
             </span>
           </Link>
@@ -176,8 +169,8 @@ export function SiteHeader() {
                 className={cn(
                   "flex min-h-11 items-center px-3 rounded-xl text-sm font-medium transition-colors",
                   isActive(pathname, item.href)
-                    ? "bg-surface-secondary text-foreground"
-                    : "text-muted hover:text-foreground",
+                    ? "bg-accent/10 text-accent"
+                    : "text-muted hover:bg-[var(--surface-secondary)] hover:text-foreground",
                 )}
               >
                 {item.label}
@@ -199,7 +192,7 @@ export function SiteHeader() {
                     variant="ghost"
                     className={cn(
                       "hidden md:flex items-center gap-1.5 rounded-full px-1",
-                      "hover:ring-2 hover:ring-primary/30 transition-all",
+                      "bg-surface-secondary/80 hover:ring-2 hover:ring-accent/25 transition-all",
                     )}
                   >
                     <Avatar size="sm">
@@ -263,8 +256,8 @@ export function SiteHeader() {
             <Drawer.CloseTrigger />
             <Drawer.Header className="flex items-center justify-between pr-10">
               <Drawer.Heading className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-xs">
-                  PC
+                <span className="brand-mark h-8 w-8 rounded-xl">
+                  <span className="brand-mark__monogram text-[0.62rem]">PC</span>
                 </span>
                 PlayCourt
               </Drawer.Heading>

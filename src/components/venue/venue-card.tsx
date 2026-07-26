@@ -23,30 +23,33 @@ export function VenueCard({ venue }: { venue: DiscoveryVenue }) {
       : null;
 
   return (
-    <Card className="overflow-hidden h-full">
+    <Card className="interactive-card h-full overflow-hidden rounded-2xl">
       <Card.Content className="p-0 flex flex-col h-full">
         {/* Cover image */}
-        <div className="relative h-40 bg-gradient-to-br from-accent/20 via-accent/10 to-surface-secondary overflow-hidden">
+        <div className="relative h-44 overflow-hidden bg-gradient-to-br from-accent/20 via-warning/10 to-surface-secondary">
           {venue.imageUrl ? (
             <img
               src={venue.imageUrl}
               alt={venue.name}
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.03]"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <MapPin className="w-10 h-10 text-accent/30" />
+              <MapPin className="w-10 h-10 text-accent/35" />
             </div>
           )}
+          <div className="pointer-events-none absolute inset-4 rounded-2xl border border-white/40" />
+          <div className="pointer-events-none absolute bottom-4 left-1/2 top-4 w-px bg-white/30" />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/35 to-transparent" />
           {/* Status badge */}
-          <div className="absolute top-3 right-3">
+          <div className="absolute right-3 top-3">
             <Chip
               size="sm"
               variant="primary"
               className={
                 venue.isOpenNow
-                  ? "bg-success/90 text-white"
-                  : "bg-foreground/60 text-white"
+                  ? "bg-success/95 text-white shadow-sm"
+                  : "bg-black/55 text-white backdrop-blur"
               }
             >
               {venue.isOpenNow ? "Đang mở" : "Đã đóng"}
@@ -55,13 +58,13 @@ export function VenueCard({ venue }: { venue: DiscoveryVenue }) {
         </div>
 
         {/* Content */}
-        <div className="p-4 flex flex-col flex-1 gap-2">
-          <h3 className="font-semibold text-foreground line-clamp-1">
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          <h3 className="line-clamp-1 text-base font-semibold text-foreground">
             {venue.name}
           </h3>
 
           {/* Address */}
-          <div className="flex items-start gap-1.5 text-sm text-muted">
+          <div className="flex items-start gap-1.5 text-sm leading-5 text-muted">
             <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             <span className="line-clamp-2">{venue.address || `${venue.district}, ${venue.city}`}</span>
           </div>
@@ -78,13 +81,13 @@ export function VenueCard({ venue }: { venue: DiscoveryVenue }) {
           {venue.amenities.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {venue.amenities.slice(0, 3).map((a) => (
-                <Chip key={a} size="sm" variant="primary" className="text-xs">
+                <Chip key={a} size="sm" variant="soft" className="text-xs">
                   <Check className="w-3 h-3 mr-0.5" />
                   {a}
                 </Chip>
               ))}
               {venue.amenities.length > 3 && (
-                <Chip size="sm" variant="primary" className="text-xs">
+                <Chip size="sm" variant="soft" className="text-xs">
                   +{venue.amenities.length - 3}
                 </Chip>
               )}

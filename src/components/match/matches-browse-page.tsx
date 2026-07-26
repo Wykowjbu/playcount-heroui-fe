@@ -184,7 +184,7 @@ export function MatchesBrowsePage() {
         </div>
 
         {/* Filters */}
-        <div className="mb-6 grid gap-3 rounded-[var(--radius)] border border-[var(--border)] p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="search-dock mb-6 grid gap-3 rounded-3xl p-3 sm:grid-cols-2 lg:grid-cols-4">
           <TextField
             className="sm:col-span-2"
             value={draftLocation}
@@ -201,7 +201,7 @@ export function MatchesBrowsePage() {
             onChange={setDraftSportId}
           >
             <Label>Môn thể thao</Label>
-            <Select.Trigger>
+            <Select.Trigger className="search-control min-h-12">
               <Select.Value />
               <Select.Indicator />
             </Select.Trigger>
@@ -217,7 +217,7 @@ export function MatchesBrowsePage() {
           </Select>
           <Select className="w-full" placeholder="Mọi trình độ" value={draftSkillLevel} onChange={setDraftSkillLevel}>
             <Label>Trình độ</Label>
-            <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+            <Select.Trigger className="search-control min-h-12"><Select.Value /><Select.Indicator /></Select.Trigger>
             <Select.Popover><ListBox>
               <ListBox.Item id={0} textValue="Mới chơi">Mới chơi<ListBox.ItemIndicator /></ListBox.Item>
               <ListBox.Item id={1} textValue="Trung bình">Trung bình<ListBox.ItemIndicator /></ListBox.Item>

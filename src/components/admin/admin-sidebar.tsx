@@ -82,10 +82,10 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
     <aside
       className={cn(
         "h-full overflow-hidden",
-        "border-r border-[var(--border)] bg-[var(--background)]"
+        "border-r border-border bg-surface/90 backdrop-blur-xl"
       )}
     >
-      <div className="px-3 py-4">
+      <div className="flex h-full flex-col px-3 py-4">
         {/* Header */}
         <div className={cn(
           "flex items-center transition-[gap] duration-[180ms] motion-reduce:transition-none",
@@ -93,7 +93,7 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
         )}
         style={{ transitionTimingFunction: EASE }}
         >
-          <Avatar size="sm">
+          <Avatar size="sm" className="ring-2 ring-accent/15">
             {user?.avatar ? <Avatar.Image src={user.avatar} alt={user.fullName} /> : null}
             <Avatar.Fallback>{user?.fullName?.charAt(0)?.toUpperCase() ?? "A"}</Avatar.Fallback>
           </Avatar>
@@ -123,8 +123,8 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
                   "relative flex min-h-11 w-full items-center rounded-xl text-sm no-underline",
                   "transition-[background-color,color,padding,gap] duration-[180ms] motion-reduce:transition-none",
                   collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
-                  active && "bg-[var(--surface-secondary)] font-semibold",
-                  !active && "hover:bg-[var(--surface-secondary)]/50"
+                  active && "bg-accent/10 text-accent font-semibold shadow-sm",
+                  !active && "text-muted hover:bg-surface-secondary/70 hover:text-foreground"
                 )}
                 style={{ transitionTimingFunction: EASE }}
                 aria-current={active ? "page" : undefined}
@@ -150,7 +150,7 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
                     "relative flex min-h-11 w-full items-center rounded-xl text-sm no-underline",
                     "transition-[background-color,color,padding,gap] duration-[180ms] motion-reduce:transition-none",
                     collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
-                    "hover:bg-[var(--surface-secondary)]/50",
+                    "hover:bg-danger/10",
                     item.className
                   )}
                   style={{ transitionTimingFunction: EASE }}
@@ -168,7 +168,7 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
                   "relative flex min-h-11 w-full items-center rounded-xl text-sm no-underline",
                   "transition-[background-color,color,padding,gap] duration-[180ms] motion-reduce:transition-none",
                   collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
-                  "hover:bg-[var(--surface-secondary)]/50"
+                  "text-muted hover:bg-surface-secondary/70 hover:text-foreground"
                 )}
                 style={{ transitionTimingFunction: EASE }}
               >

@@ -15,7 +15,7 @@ export function AdminShell({ children }: AdminShellProps) {
 
   return (
     <div
-      className="grid h-screen overflow-hidden bg-[var(--background)] transition-[grid-template-columns] duration-[220ms] motion-reduce:transition-none"
+      className="app-surface grid h-screen overflow-hidden transition-[grid-template-columns] duration-[220ms] motion-reduce:transition-none"
       style={{
         gridTemplateColumns: sidebarCollapsed ? "72px minmax(0, 1fr)" : "240px minmax(0, 1fr)",
         transitionTimingFunction: EASE,
@@ -30,7 +30,7 @@ export function AdminShell({ children }: AdminShellProps) {
         <AdminTopbar onToggleSidebar={toggleSidebar} sidebarCollapsed={sidebarCollapsed} />
 
         {/* Scrollable content */}
-        <main className="flex-1 overflow-auto px-6 py-5 pb-8">
+        <main className="flex-1 overflow-auto px-4 py-6 pb-8 sm:px-6 lg:px-8">
           {children}
         </main>
       </div>

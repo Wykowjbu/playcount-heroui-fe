@@ -17,7 +17,7 @@ export function OwnerTopbar({ activeItem, ownerStatus, onToggleSidebar }: Topbar
   const { user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--background)] px-4 sm:h-16 sm:px-6">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-border bg-surface/90 px-4 shadow-sm backdrop-blur-xl sm:h-16 sm:px-6">
       <div className="flex items-center gap-3">
         <Drawer>
           <Button className="lg:hidden" isIconOnly variant="ghost" aria-label="Mở menu điều hướng"><Bars className="w-5 h-5" /></Button>
@@ -42,7 +42,7 @@ export function OwnerTopbar({ activeItem, ownerStatus, onToggleSidebar }: Topbar
       <div className="flex items-center gap-2">
         <NotificationDropdown />
 
-        <Avatar size="sm">
+        <Avatar size="sm" className="ring-2 ring-accent/15">
           {user?.avatar ? <Avatar.Image src={user.avatar} alt={user.fullName} /> : null}
           <Avatar.Fallback>
             {user?.fullName?.charAt(0)?.toUpperCase() ?? "O"}
