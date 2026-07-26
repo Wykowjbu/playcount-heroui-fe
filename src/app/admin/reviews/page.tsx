@@ -3,7 +3,6 @@
 import {
   Card,
   CardContent,
-  Button,
 } from "@heroui/react";
 
 import Star from "@gravity-ui/icons/Star";

@@ -65,7 +65,14 @@ function VenueDetail({ venueId }: { venueId: number }) {
 
     <section className="space-y-3"><div><h2 className="text-lg font-semibold">Danh sách sân</h2><p className="text-sm text-[var(--muted)]">{courts.length} sân thuộc cơ sở</p></div>{courts.length === 0 ? <p className="py-6 text-sm text-[var(--muted)]">Cơ sở chưa có sân.</p> : <Table aria-label="Danh sách sân"><Table.ScrollContainer><Table.Content><Table.Header><Table.Column isRowHeader>Tên sân</Table.Column><Table.Column>Môn thể thao</Table.Column><Table.Column>Không gian</Table.Column><Table.Column>Trạng thái</Table.Column></Table.Header><Table.Body items={courts}>{(court) => { const courtStatus = getStatusConfig("court", court.status); return <Table.Row id={court.id}><Table.Cell className="font-medium">{court.name}</Table.Cell><Table.Cell>{court.sportName}</Table.Cell><Table.Cell>{court.indoor ? "Trong nhà" : "Ngoài trời"}</Table.Cell><Table.Cell><Chip size="sm" color={courtStatus.color} variant="soft">{courtStatus.label}</Chip></Table.Cell></Table.Row>; }}</Table.Body></Table.Content></Table.ScrollContainer></Table>}</section>
 
-    {venue.openingHours?.length > 0 && <Card><CardHeader><CardTitle>Giờ mở cửa</CardTitle></CardHeader><CardContent className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">{venue.openingHours.map((hour) => <div key={hour.dayOfWeek} className="flex justify-between gap-4 border-b border-[var(--border)] py-2"><span className="font-medium">{DAY_NAMES[hour.dayOfWeek]}</span><span className="text-[var(--muted)]">{hour.isClosed || !hour.openTime || !hour.closeTime ? "Đóng cửa" : `${formatTime(hour.openTime)} – ${formatTime(hour.closeTime)}`}</span></div>)}</CardContent></Card>}
+    {(() => {
+      const hours = venue.openingHours?.length > 0
+        ? venue.openingHours
+        : venue.openTime && venue.closeTime
+        ? [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, openTime: venue.openTime, closeTime: venue.closeTime, isClosed: false }))
+        : [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, openTime: "06:00:00", closeTime: "22:00:00", isClosed: false }));
+      return <Card><CardHeader><CardTitle>Giờ mở cửa</CardTitle></CardHeader><CardContent className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">{hours.map((hour) => <div key={hour.dayOfWeek} className="flex justify-between gap-4 border-b border-[var(--border)] py-2"><span className="font-medium">{DAY_NAMES[hour.dayOfWeek]}</span><span className="text-[var(--muted)]">{hour.isClosed || !hour.openTime || !hour.closeTime ? "Đóng cửa" : `${formatTime(hour.openTime)} – ${formatTime(hour.closeTime)}`}</span></div>)}</CardContent></Card>;
+    })()}
 
     {venue.images?.length > 0 && <Card><CardHeader><CardTitle>Hình ảnh</CardTitle></CardHeader><CardContent><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{venue.images.map((image) => <div key={image.id} className="relative overflow-hidden rounded-xl"><img src={image.imageUrl} alt={`Hình ảnh ${venue.name}`} className="h-32 w-full object-cover" />{image.isCover && <Chip className="absolute left-2 top-2" size="sm">Ảnh bìa</Chip>}</div>)}</div></CardContent></Card>}
 
