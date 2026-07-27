@@ -21,17 +21,17 @@ export function AdminStatCard({
   return (
     <Card
       className={cn(
-        "h-auto min-h-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm"
+        "interactive-card h-auto min-h-0 rounded-2xl"
       )}
     >
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-secondary)]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent">
             <Icon className="w-5 h-5" />
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-[var(--muted)] font-medium">{title}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">{title}</p>
             <p className="mt-0.5 text-2xl font-bold">{value}</p>
             {subtitle && (
               <p className="text-xs text-[var(--muted)] mt-1">{subtitle}</p>

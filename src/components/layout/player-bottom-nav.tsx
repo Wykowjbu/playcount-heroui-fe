@@ -23,11 +23,10 @@ export function PlayerBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border"
-      style={{ background: "var(--surface)" }}
+      className="fixed bottom-3 left-3 right-3 z-50 rounded-2xl border border-border bg-surface/95 shadow-lg backdrop-blur-xl md:hidden"
       aria-label="Điều hướng nhanh"
     >
-      <div className="flex items-center justify-around h-14">
+      <div className="flex h-14 items-center justify-around px-1">
         {NAV_ITEMS.map((item) => {
           const active = isActive(pathname, item.href);
           return (
@@ -35,9 +34,9 @@ export function PlayerBottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-colors min-w-[56px]",
+                "flex min-w-[56px] flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-[10px] font-medium transition-colors",
                 active
-                  ? "text-accent"
+                  ? "bg-accent/10 text-accent"
                   : "text-muted hover:text-foreground",
               )}
               aria-current={active ? "page" : undefined}

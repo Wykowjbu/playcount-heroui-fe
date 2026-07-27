@@ -35,7 +35,7 @@ export function OwnerShell({ children, activeItem = "dashboard" }: OwnerShellPro
 
   return (
     <div
-      className="grid min-h-screen grid-cols-1 bg-[var(--background)] transition-[grid-template-columns] duration-[220ms] motion-reduce:transition-none lg:h-screen lg:overflow-hidden lg:[grid-template-columns:var(--owner-sidebar-width)_minmax(0,1fr)]"
+      className="app-surface grid min-h-screen grid-cols-1 transition-[grid-template-columns] duration-[220ms] motion-reduce:transition-none lg:h-screen lg:overflow-hidden lg:[grid-template-columns:var(--owner-sidebar-width)_minmax(0,1fr)]"
       style={{
         "--owner-sidebar-width": sidebarCollapsed ? "80px" : "248px",
         transitionTimingFunction: EASE,

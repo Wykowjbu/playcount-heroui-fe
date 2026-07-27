@@ -10,7 +10,7 @@ interface AdminTopbarProps {
 export function AdminTopbar({ onToggleSidebar, sidebarCollapsed }: AdminTopbarProps) {
   const { user } = useAuth();
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--background)] px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-surface/90 px-4 shadow-sm backdrop-blur-xl sm:px-6">
       <div className="flex items-center gap-3">
         <Button
           isIconOnly
@@ -22,7 +22,7 @@ export function AdminTopbar({ onToggleSidebar, sidebarCollapsed }: AdminTopbarPr
         </Button>
         <p className="text-sm font-semibold">Quản trị hệ thống</p>
       </div>
-      <Avatar size="sm">
+      <Avatar size="sm" className="ring-2 ring-accent/15">
         {user?.avatar ? <Avatar.Image src={user.avatar} alt={user.fullName} /> : null}
         <Avatar.Fallback>{user?.fullName?.charAt(0)?.toUpperCase() ?? "AD"}</Avatar.Fallback>
       </Avatar>

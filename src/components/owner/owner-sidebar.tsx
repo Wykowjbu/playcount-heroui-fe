@@ -68,8 +68,8 @@ export function OwnerSidebar({ collapsed, activeItem, mobile = false, ownerStatu
   }
 
   return (
-    <aside className={cn("h-full overflow-hidden bg-[var(--background)]", !mobile && "hidden border-r border-[var(--border)] lg:block")}>
-      <div className="px-3 py-4">
+    <aside className={cn("h-full overflow-hidden bg-surface/90 backdrop-blur-xl", !mobile && "hidden border-r border-border lg:block")}>
+      <div className="flex h-full flex-col px-3 py-4">
         {/* Header */}
         <div
           className={cn(
@@ -78,7 +78,7 @@ export function OwnerSidebar({ collapsed, activeItem, mobile = false, ownerStatu
           )}
           style={{ transitionTimingFunction: EASE }}
         >
-          <Avatar size="sm">
+          <Avatar size="sm" className="ring-2 ring-accent/15">
             {user?.avatar ? <Avatar.Image src={user.avatar} alt={user.fullName} /> : null}
             <Avatar.Fallback>
               {user?.fullName?.charAt(0)?.toUpperCase() ?? "O"}
@@ -113,8 +113,8 @@ export function OwnerSidebar({ collapsed, activeItem, mobile = false, ownerStatu
                   "flex min-h-11 w-full items-center rounded-xl text-sm no-underline",
                   "transition-[background-color,color,padding,gap] duration-[180ms] motion-reduce:transition-none",
                   collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
-                  active && "bg-[var(--surface-secondary)] font-semibold",
-                  !active && "hover:bg-[var(--surface-secondary)]/50",
+                  active && "bg-accent/10 text-accent font-semibold shadow-sm",
+                  !active && "text-muted hover:bg-surface-secondary/70 hover:text-foreground",
                 )}
                 style={{ transitionTimingFunction: EASE }}
                 aria-current={active ? "page" : undefined}
@@ -138,7 +138,7 @@ export function OwnerSidebar({ collapsed, activeItem, mobile = false, ownerStatu
                 "flex min-h-11 w-full items-center rounded-xl text-sm no-underline",
                 "transition-[background-color,color] duration-[180ms] motion-reduce:transition-none",
                 collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
-                "hover:bg-[var(--surface-secondary)]/50",
+                "text-muted hover:bg-surface-secondary/70 hover:text-foreground",
               )}
               style={{ transitionTimingFunction: EASE }}
             >
@@ -153,7 +153,7 @@ export function OwnerSidebar({ collapsed, activeItem, mobile = false, ownerStatu
               "flex min-h-11 w-full items-center rounded-xl text-sm text-[var(--danger)]",
               "transition-[background-color,color] duration-[180ms] motion-reduce:transition-none",
               collapsed ? "justify-center gap-0 px-2" : "justify-start gap-3 px-3",
-              "hover:bg-[var(--danger)]/10",
+              "hover:bg-danger/10",
             )}
             style={{ transitionTimingFunction: EASE }}
           >

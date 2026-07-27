@@ -205,16 +205,18 @@ export function VenuesPage() {
   return (
     <>
       <SiteHeader />
-      <main className="flex-1">
+      <main className="app-surface flex-1">
         {/* Page Header */}
         <section className="py-8 md:py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+            <div className="max-w-3xl">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-4xl">
               Sân bãi
             </h1>
-            <p className="mt-2 text-muted">
+            <p className="mt-3 text-sm leading-6 text-muted md:text-base">
               Tìm và so sánh các sân thể thao phù hợp với lịch chơi của bạn
             </p>
+            </div>
           </div>
         </section>
 
@@ -224,7 +226,7 @@ export function VenuesPage() {
             <div className="flex gap-8">
               {/* Desktop Sidebar */}
               <aside className="hidden lg:block w-[260px] shrink-0">
-                <div className="sticky top-24 rounded-xl border border-border bg-surface p-5">
+                <div className="glass-panel sticky top-24 rounded-2xl p-5">
                   <h2 className="font-semibold text-foreground mb-4">
                     Bộ lọc
                   </h2>
@@ -241,7 +243,7 @@ export function VenuesPage() {
               {/* Results Area */}
               <div className="flex-1 min-w-0">
                 {/* Result Toolbar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-border bg-surface/70 p-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     {result && (
                       <p className="text-sm text-muted">
@@ -330,8 +332,8 @@ export function VenuesPage() {
                     <Tabs selectedKey={view} onSelectionChange={(key) => setView(String(key) as "list" | "map")}>
                       <Tabs.ListContainer className="mb-4">
                         <Tabs.List aria-label="Kiểu hiển thị sân" className="*:min-h-11">
-                          <Tabs.Tab id="list"><ListUl className="size-4" />Danh sách<Tabs.Indicator /></Tabs.Tab>
-                          <Tabs.Tab id="map"><MapPin className="size-4" />Bản đồ<Tabs.Indicator /></Tabs.Tab>
+                          <Tabs.Tab id="list" className="gap-1.5"><ListUl className="size-4" />Danh sách<Tabs.Indicator /></Tabs.Tab>
+                          <Tabs.Tab id="map" className="gap-1.5"><MapPin className="size-4" />Bản đồ<Tabs.Indicator /></Tabs.Tab>
                         </Tabs.List>
                       </Tabs.ListContainer>
                       <Tabs.Panel id="list">
