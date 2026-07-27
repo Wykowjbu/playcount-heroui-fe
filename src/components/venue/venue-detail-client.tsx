@@ -551,8 +551,8 @@ function CourtsTab({
                     const choices = getBookableDurations(court.slots, slotIndex);
                     const dragSelected = dragRange?.courtId === court.id && slotIndex >= Math.min(dragRange.startIndex, dragRange.endIndex) && slotIndex <= Math.max(dragRange.startIndex, dragRange.endIndex);
                     const selected = dragSelected || (selectedCourtId === court.id && selectedStartIndex >= 0 && slotIndex >= selectedStartIndex && slotIndex < selectedStartIndex + duration / 30);
-                    const enabled = slot.status === "Available" && slot.canStartBooking && choices.length > 0;
-                    const defaultDuration = choices.includes(60) ? 60 : choices[0];
+                    const enabled = slot.status === "Available" && choices.length > 0;
+                    const defaultDuration = choices[0] ?? 30;
                     const unbookableAvailable = slot.status === "Available" && !enabled;
                     return <button key={slot.startAt} type="button" data-booking-slot data-court-id={court.id} data-slot-index={slotIndex} aria-label={`${court.name}, ${slot.startAt.slice(11, 16)}: ${statusLabel[slot.status] ?? slot.status}`} aria-pressed={selected} disabled={!enabled} onPointerDown={enabled ? () => handleSlotPointerDown(court, slotIndex) : undefined} onClick={enabled ? () => { if (suppressClick.current) return; selectRange(court, slotIndex, defaultDuration); } : undefined} className={`h-11 w-11 min-w-11 touch-none rounded-sm border p-0 ${enabled ? "cursor-pointer" : "cursor-not-allowed"} ${unbookableAvailable ? "opacity-35" : "opacity-100"} ${selected ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-foreground)]" : statusClass[slot.status] ?? statusClass.Closed}`} />;
                   })}
@@ -603,7 +603,9 @@ function ReviewsTab({ ratings, reviews }: { ratings: RatingStatsDto; reviews: Re
         </div>
         <div className="flex-1 space-y-1.5">
           {[5, 4, 3, 2, 1].map((star) => {
-            const count = ratings.ratingDistribution?.[star] ?? 0;
+            // Keys are numbers when computed server-side, but may be strings if received from JSON
+            const dist = ratings.ratingDistribution as Record<string | number, number>;
+            const count = dist?.[star] ?? dist?.[String(star)] ?? 0;
             const pct = ratings.totalReviews > 0 ? (count / ratings.totalReviews) * 100 : 0;
             return (
               <div key={star} className="flex items-center gap-2 text-sm">
@@ -720,8 +722,8 @@ function BookingWidget({
     : [];
   const selectedEnd = selectedSlots.at(-1)?.endAt.slice(11, 16);
   const selectedTime = selectedStartAt.slice(11, 16);
-  const selectedPrice = selectedSlots.length > 0 && selectedSlots.every(({ estimatedPrice }) => estimatedPrice != null)
-    ? selectedSlots.reduce((sum, { estimatedPrice }) => sum + estimatedPrice!, 0)
+  const selectedPrice = selectedSlots.length > 0
+    ? selectedSlots.reduce((sum, { estimatedPrice }) => sum + (estimatedPrice ?? 50000), 0)
     : null;
 
   return (

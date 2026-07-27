@@ -19,7 +19,7 @@ export function toLocalIsoWithOffset(date: string, time: string, offsetMinutes: 
 
 export function getBookableDurations(slots: VenueAvailabilitySlotDto[], startIndex: number): number[] {
   const first = slots[startIndex];
-  if (!first?.canStartBooking) return [];
+  if (!first || first.status !== "Available") return [];
 
   const durations: number[] = [];
   const firstStart = Date.parse(first.startAt);
@@ -27,11 +27,11 @@ export function getBookableDurations(slots: VenueAvailabilitySlotDto[], startInd
   for (const slot of slots.slice(startIndex)) {
     const start = Date.parse(slot.startAt);
     const end = Date.parse(slot.endAt);
-    if (slot.status !== "Available" || slot.estimatedPrice == null || start !== expectedStart || end - start !== 30 * 60_000) break;
+    if (slot.status !== "Available" || start !== expectedStart || end - start !== 30 * 60_000) break;
     durations.push((end - firstStart) / 60_000);
     expectedStart = end;
   }
-  return durations.filter((duration) => duration >= 60);
+  return durations.filter((duration) => duration >= 30);
 }
 
 export function getScheduleSlotIndexes(

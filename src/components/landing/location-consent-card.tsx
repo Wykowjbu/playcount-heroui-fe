@@ -59,29 +59,50 @@ export function LocationConsentCard({ isOpen, onLocationResolved, onSkip }: Prop
     );
   };
 
-  return <Modal>
-    <Modal.Backdrop isOpen={isOpen} onOpenChange={(open) => { if (!open) dismiss(); }} variant="blur">
-      <Modal.Container size="sm" placement="center">
-        <Modal.Dialog aria-label="Cho phép dùng vị trí hiện tại">
-          <Modal.CloseTrigger />
-          <Modal.Header><Modal.Heading>Dùng vị trí hiện tại?</Modal.Heading></Modal.Header>
-          <Modal.Body>
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-            <MapPin className="w-5 h-5 text-accent" />
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-md rounded-3xl border border-border bg-surface p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-accent/10 flex items-center justify-center shrink-0">
+              <MapPin className="w-5 h-5 text-accent" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">Dùng vị trí hiện tại?</h3>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Gợi ý sân gần bạn sẽ chính xác hơn nếu có khu vực.</p>
-            <p className="text-xs text-muted mt-1">
-              PlayCourt dùng vị trí để sắp xếp sân gần bạn hơn.
-            </p>
-            {error && <Alert className="mt-3" status="warning"><Alert.Indicator><CircleInfo className="size-4" /></Alert.Indicator><Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content></Alert>}
-          </div>
+          <button
+            type="button"
+            onClick={dismiss}
+            className="text-muted hover:text-foreground text-xl font-medium p-1 leading-none"
+          >
+            ✕
+          </button>
         </div>
-          </Modal.Body>
-          <Modal.Footer><Button variant="tertiary" size="lg" className="min-h-11" onPress={dismiss}>Không phải bây giờ</Button><Button variant="primary" size="lg" className="min-h-11" onPress={handleUseLocation} isPending={loading}><MapPin className="mr-1 size-4" />{error ? "Thử lại vị trí" : "Dùng vị trí hiện tại"}</Button></Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
-  </Modal>;
+
+        <div className="space-y-3 mb-6">
+          <p className="text-sm text-foreground">Gợi ý sân gần bạn sẽ chính xác hơn nếu có vị trí khu vực.</p>
+          <p className="text-xs text-muted">
+            PlayCourt dùng vị trí để tìm kiếm và sắp xếp các sân thể thao ở gần bạn nhất.
+          </p>
+          {error && (
+            <Alert status="warning" className="mt-3">
+              <Alert.Indicator><CircleInfo className="size-4" /></Alert.Indicator>
+              <Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content>
+            </Alert>
+          )}
+        </div>
+
+        <div className="flex gap-3 justify-end">
+          <Button variant="tertiary" size="lg" className="min-h-11 flex-1" onPress={dismiss}>
+            Không phải bây giờ
+          </Button>
+          <Button variant="primary" size="lg" className="min-h-11 flex-1" onPress={handleUseLocation} isPending={loading}>
+            <MapPin className="mr-1 size-4" />
+            {error ? "Thử lại" : "Dùng vị trí hiện tại"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }

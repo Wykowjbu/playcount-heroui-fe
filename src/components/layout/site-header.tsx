@@ -136,41 +136,39 @@ export function SiteHeader() {
   return (
     <>
       <header
-        className={cn(
-          "sticky top-3 z-50 flex justify-center px-3 pointer-events-none sm:top-4 sm:px-4",
-        )}
+        className="sticky top-3 z-50 flex justify-center px-3 pointer-events-none sm:top-4 sm:px-4"
       >
         <nav
           className={cn(
             "pointer-events-auto w-full max-w-5xl flex items-center justify-between gap-3",
-            "glass-panel rounded-[1.25rem] px-3 py-2 sm:px-4",
+            "glass-panel rounded-2xl px-3 py-1.5 sm:px-4",
           )}
         >
           {/* ---- Logo ---- */}
           <Link
             href="/"
-            className="flex min-h-11 min-w-11 items-center gap-2 shrink-0 group"
+            className="flex min-h-10 min-w-10 items-center gap-2 shrink-0 group"
           >
-            <span className="brand-mark transition-transform group-hover:scale-105">
+            <span className="brand-mark transition-all duration-200 group-hover:shadow-[0_6px_20px_rgba(29,110,245,0.35)]">
               <span className="brand-mark__monogram">PC</span>
             </span>
-            <span className="hidden text-lg font-extrabold tracking-tight text-[var(--foreground)] min-[480px]:block">
+            <span className="hidden text-[1.0625rem] font-extrabold tracking-tight text-foreground min-[480px]:block">
               PlayCourt
             </span>
           </Link>
 
           {/* ---- Desktop Nav (≥ 768px) ---- */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-0.5">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={isActive(pathname, item.href) ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 items-center px-3 rounded-xl text-sm font-medium transition-colors",
+                  "flex min-h-9 items-center px-3 rounded-xl text-[0.8125rem] font-medium transition-all duration-150",
                   isActive(pathname, item.href)
-                    ? "bg-accent/10 text-accent"
-                    : "text-muted hover:bg-[var(--surface-secondary)] hover:text-foreground",
+                    ? "bg-accent/10 text-accent font-semibold"
+                    : "text-muted hover:bg-slate-100 hover:text-foreground",
                 )}
               >
                 {item.label}

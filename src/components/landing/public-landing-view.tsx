@@ -92,7 +92,7 @@ export function PublicLandingView() {
             </p>
 
             <div className="search-dock mt-6 max-w-4xl rounded-[1.5rem] p-2.5">
-              <div className="grid gap-2.5 lg:grid-cols-[1.2fr_220px_auto]">
+              <div className="grid gap-2.5 lg:grid-cols-[1.2fr_220px_auto] lg:items-end">
                 <TextField aria-label="Khu vực hoặc tên sân">
                   <Label className="search-label">Khu vực hoặc tên sân</Label>
                   <div className="relative">
@@ -141,11 +141,11 @@ export function PublicLandingView() {
                   href={searchHref}
                   className={buttonVariants({
                     size: "lg",
-                    className: "min-h-12 rounded-[0.875rem] bg-[var(--accent)] px-6 text-white shadow-md shadow-blue-900/20 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-900/20",
+                    className: "flex min-h-12 items-center justify-center gap-2 rounded-[0.875rem] bg-[var(--accent)] px-6 text-white font-semibold shadow-md shadow-blue-900/20 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-900/20",
                   })}
                 >
-                  <Magnifier className="size-4" />
-                  Tìm sân
+                  <Magnifier className="size-4 shrink-0" />
+                  <span>Tìm sân</span>
                 </Link>
               </div>
             </div>
@@ -206,13 +206,14 @@ export function PublicLandingView() {
         </div>
       </section>
 
-      <section className="border-y border-[var(--border)] bg-white/70 py-3">
-        <div className="marquee-track flex w-max gap-8 whitespace-nowrap">
-          {Array.from({ length: 2 }).map((_, group) => (
-            <div key={group} className="flex items-center gap-8 px-4">
+      <section className="overflow-hidden border-y border-slate-800 bg-[#0f172a] py-3.5 text-white">
+        <div className="animate-marquee flex items-center whitespace-nowrap">
+          {[0, 1].map((group) => (
+            <div key={group} className="flex items-center shrink-0">
               {["BADMINTON", "PICKLEBALL", "TENNIS", "BOOK FAST", "JOIN MATCHES", "PLAY TONIGHT"].map((item) => (
-                <span key={`${group}-${item}`} className="font-display text-2xl font-bold uppercase text-[var(--foreground)]/70">
+                <span key={`${group}-${item}`} className="font-display text-xs font-extrabold uppercase tracking-[0.22em] text-slate-300 flex items-center px-6 gap-6">
                   {item}
+                  <span className="size-1.5 rounded-full bg-[var(--accent)] shrink-0" />
                 </span>
               ))}
             </div>

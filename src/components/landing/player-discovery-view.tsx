@@ -55,9 +55,13 @@ export function PlayerDiscoveryView({ user }: Props) {
         setLocation({ city: profile.city, source: "profile" });
       }
 
+      // Check if user already dismissed/accepted location consent
+      const locationDismissed = typeof window !== "undefined" &&
+        localStorage.getItem("pc_location_consent_dismissed") === "1";
+
       // Determine recommendation state and show inline cards
       const recState = getRecommendationState(sportNames.length > 0, hasLocation);
-      setShowLocationCard(recState === "B" || recState === "D");
+      setShowLocationCard(!locationDismissed && (recState === "B" || recState === "D"));
       setShowSportCard(recState === "C" || recState === "D");
     } catch {
       // Profile fetch failed, continue with empty state
@@ -118,6 +122,10 @@ export function PlayerDiscoveryView({ user }: Props) {
 
   const handleLocationResolved = async (loc: LocationState) => {
     if (loc.lat == null || loc.lng == null) return;
+    // Persist that user made a location decision — don't show again
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pc_location_consent_dismissed", "1");
+    }
     const token = ++venueRequestToken.current;
     setVenuesLoading(true);
     try {
@@ -135,6 +143,10 @@ export function PlayerDiscoveryView({ user }: Props) {
   };
 
   const handleSkipLocation = () => {
+    // Persist dismissal so modal won't reappear this session + across navigations
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pc_location_consent_dismissed", "1");
+    }
     venueRequestToken.current += 1;
     setVenuesLoading(false);
     setShowLocationCard(false);
