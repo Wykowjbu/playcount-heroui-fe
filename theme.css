@@ -1,8 +1,8 @@
 /*
- * HeroUI Theme Customization
- * Add this to your global.css after importing @heroui/styles
- * Only includes variables users need to customize
- * @see https://heroui.com/docs/react/getting-started/theming
+ * PlayCourt Design System — Clean Athletic Light
+ * Style: Modern Sports Booking Platform
+ * Palette: Crisp white + Deep Navy text + Sports Blue accent
+ * ─────────────────────────────────────────────────────────────────
  */
 
 :root,
@@ -10,81 +10,110 @@
 .default,
 [data-theme="light"],
 [data-theme="default"] {
-  /* Theme Colors (Light Mode) */
-  --accent: #2563eb;
+  /* ── Core Palette ─────────────────────────────────────────── */
+  --accent: #1d6ef5;                   /* Sports Blue — vibrant, trustworthy */
   --accent-foreground: #ffffff;
-  --background: #f7faf6;
-  --border: #dbe5d6;
-  --danger: #dc2626;
+  --background: #f8fafc;               /* Soft off-white — easy on eyes */
+  --border: #e2e8f0;                   /* Subtle slate border */
+  --danger: #ef4444;
   --danger-foreground: #ffffff;
-  --default: #eef4ea;
-  --default-foreground: #14213d;
+  --default: #f1f5f9;
+  --default-foreground: #0f172a;
   --field-background: #ffffff;
-  --field-border: #dbe5d6;
-  --field-foreground: #14213d;
-  --field-placeholder: #6b7a90;
-  --focus: #2563eb;
-  --foreground: #14213d;
-  --muted: #64748b;
+  --field-border: #e2e8f0;
+  --field-foreground: #0f172a;
+  --field-placeholder: #94a3b8;
+  --focus: #1d6ef5;
+  --foreground: #0f172a;               /* Deep Navy — strong contrast */
+  --muted: #64748b;                    /* Balanced slate muted */
   --overlay: #ffffff;
-  --overlay-foreground: #14213d;
-  --scrollbar: #bfd0b9;
+  --overlay-foreground: #0f172a;
+  --scrollbar: #cbd5e1;
   --segment: #ffffff;
-  --segment-foreground: #14213d;
-  --separator: #e5ece1;
-  --success: #16a34a;
+  --segment-foreground: #0f172a;
+  --separator: #e2e8f0;
+  --success: #10b981;
   --success-foreground: #ffffff;
   --surface: #ffffff;
-  --surface-foreground: #14213d;
-  --surface-secondary: #edf5e9;
-  --surface-secondary-foreground: #14213d;
-  --surface-tertiary: #e1eddb;
-  --surface-tertiary-foreground: #14213d;
+  --surface-foreground: #0f172a;
+  --surface-secondary: #f1f5f9;
+  --surface-secondary-foreground: #0f172a;
+  --surface-tertiary: #e8edf5;
+  --surface-tertiary-foreground: #0f172a;
   --warning: #f59e0b;
-  --warning-foreground: #111827;
+  --warning-foreground: #ffffff;
 
-  /* Border Radius */
+  /* ── Shape & Space ────────────────────────────────────────── */
   --radius: 0.75rem;
-  --field-radius: 0.75rem;
+  --field-radius: 0.625rem;
 
-  /* Font Family */
-  /* Make sure to load Inter font in your app */
-  --font-sans: var(--font-inter);
+  /* ── Typography ───────────────────────────────────────────── */
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+
+  /* ── Semantic Gradients ───────────────────────────────────── */
+  --gradient-hero:    linear-gradient(135deg, #1d6ef5 0%, #0ea5e9 60%, #06b6d4 100%);
+  --gradient-sport:   linear-gradient(145deg, #1d6ef5 0%, #2563eb 100%);
+  --gradient-card:    linear-gradient(160deg, rgba(29,110,245,0.04) 0%, rgba(14,165,233,0.02) 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+
+  /* ── Elevation ────────────────────────────────────────────── */
+  --shadow-xs:   0 1px 2px rgba(15,23,42,0.04);
+  --shadow-sm:   0 2px 8px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04);
+  --shadow-md:   0 4px 16px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04);
+  --shadow-lg:   0 8px 32px rgba(15,23,42,0.10), 0 4px 12px rgba(15,23,42,0.06);
+  --shadow-xl:   0 16px 48px rgba(15,23,42,0.12), 0 6px 18px rgba(15,23,42,0.06);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-lg);
+  --shadow-header: 0 2px 20px rgba(15,23,42,0.08);
+  --shadow-accent: 0 4px 24px rgba(29,110,245,0.24);
 }
 
 .dark,
 [data-theme="dark"] {
   color-scheme: dark;
-  /* Theme Colors (Dark Mode) */
-  --accent: oklch(62.04% 0.1950 253.83);
-  --accent-foreground: oklch(99.11% 0 0);
-  --background: oklch(12.00% 0.0015 253.83);
-  --border: oklch(28.00% 0.0015 253.83);
-  --danger: oklch(59.40% 0.1973 24.63);
-  --danger-foreground: oklch(99.11% 0 0);
-  --default: oklch(27.40% 0.0015 253.83);
-  --default-foreground: oklch(99.11% 0 0);
-  --field-background: oklch(21.03% 0.0030 253.83);
-  --field-border: transparent;
-  --field-foreground: oklch(99.11% 0.0015 253.83);
-  --field-placeholder: oklch(70.50% 0.0030 253.83);
-  --focus: oklch(62.04% 0.1950 253.83);
-  --foreground: oklch(99.11% 0.0015 253.83);
-  --muted: oklch(70.50% 0.0030 253.83);
-  --overlay: oklch(21.03% 0.0030 253.83);
-  --overlay-foreground: oklch(99.11% 0.0015 253.83);
-  --scrollbar: oklch(70.50% 0.0015 253.83);
-  --segment: oklch(39.64% 0.0015 253.83);
-  --segment-foreground: oklch(99.11% 0.0015 253.83);
-  --separator: oklch(25.00% 0.0015 253.83);
-  --success: oklch(73.29% 0.1941 150.81);
-  --success-foreground: oklch(21.03% 0.0059 150.81);
-  --surface: oklch(21.03% 0.0030 253.83);
-  --surface-foreground: oklch(99.11% 0.0015 253.83);
-  --surface-secondary: oklch(25.70% 0.0023 253.83);
-  --surface-secondary-foreground: oklch(99.11% 0.0015 253.83);
-  --surface-tertiary: oklch(27.21% 0.0023 253.83);
-  --surface-tertiary-foreground: oklch(99.11% 0.0015 253.83);
-  --warning: oklch(82.03% 0.1392 76.34);
-  --warning-foreground: oklch(21.03% 0.0059 76.34);
+  --accent: #4f8ef5;
+  --accent-foreground: #ffffff;
+  --background: #0d1117;
+  --border: #21262d;
+  --danger: #f87171;
+  --danger-foreground: #ffffff;
+  --default: #21262d;
+  --default-foreground: #f0f6fc;
+  --field-background: #161b22;
+  --field-border: #30363d;
+  --field-foreground: #f0f6fc;
+  --field-placeholder: #6e7681;
+  --focus: #4f8ef5;
+  --foreground: #f0f6fc;
+  --muted: #8b949e;
+  --overlay: #21262d;
+  --overlay-foreground: #f0f6fc;
+  --scrollbar: #30363d;
+  --segment: #30363d;
+  --segment-foreground: #f0f6fc;
+  --separator: #21262d;
+  --success: #34d399;
+  --success-foreground: #0d1117;
+  --surface: #161b22;
+  --surface-foreground: #f0f6fc;
+  --surface-secondary: #21262d;
+  --surface-secondary-foreground: #f0f6fc;
+  --surface-tertiary: #2d333b;
+  --surface-tertiary-foreground: #f0f6fc;
+  --warning: #fbbf24;
+  --warning-foreground: #0d1117;
+
+  --radius: 0.75rem;
+  --field-radius: 0.625rem;
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+
+  --shadow-xs:   0 1px 2px rgba(0,0,0,0.20);
+  --shadow-sm:   0 2px 8px rgba(0,0,0,0.28), 0 1px 3px rgba(0,0,0,0.16);
+  --shadow-md:   0 4px 16px rgba(0,0,0,0.32), 0 2px 6px rgba(0,0,0,0.18);
+  --shadow-lg:   0 8px 32px rgba(0,0,0,0.36), 0 4px 12px rgba(0,0,0,0.22);
+  --shadow-xl:   0 16px 48px rgba(0,0,0,0.40), 0 6px 18px rgba(0,0,0,0.24);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-lg);
+  --shadow-header: 0 2px 20px rgba(0,0,0,0.40);
+  --shadow-accent: 0 4px 24px rgba(79,142,245,0.30);
 }

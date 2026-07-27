@@ -14,6 +14,7 @@ interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
+  totalCount?: number;
 }
 
 async function fetchApi<T>(path: string): Promise<T> {
@@ -24,6 +25,24 @@ async function fetchApi<T>(path: string): Promise<T> {
   const body: ApiResponse<T> = await res.json();
   if (!body.success) throw new Error(body.message);
   return body.data;
+}
+
+/** Compute RatingStatsDto from an array of reviews (client-side fallback) */
+function computeRatingStats(reviews: ReviewResponseDto[]): RatingStatsDto {
+  const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  let total = 0;
+  for (const r of reviews) {
+    const star = Math.round(r.rating);
+    if (star >= 1 && star <= 5) {
+      distribution[star] = (distribution[star] ?? 0) + 1;
+      total += r.rating;
+    }
+  }
+  return {
+    averageRating: reviews.length > 0 ? total / reviews.length : 0,
+    totalReviews: reviews.length,
+    ratingDistribution: distribution,
+  };
 }
 
 export default async function VenueDetailPage({
@@ -38,16 +57,15 @@ export default async function VenueDetailPage({
   let venue: VenueResponseDto;
   let courts: CourtDto[];
   let openingHours: OpeningHourDto[];
-  let ratingStats: RatingStatsDto | null;
   let reviewsData: ReviewResponseDto[];
 
   try {
-    [venue, courts, openingHours, ratingStats, reviewsData] = await Promise.all([
+    [venue, courts, openingHours, reviewsData] = await Promise.all([
       fetchApi<VenueResponseDto>(`/Venues/${venueId}`),
       fetchApi<CourtDto[]>(`/venues/${venueId}/courts`),
       fetchApi<OpeningHourDto[]>(`/Venues/${venueId}/opening-hours`),
-      fetchApi<RatingStatsDto>(`/venues/${venueId}/rating-stats`).catch(() => null),
-      fetchApi<ReviewResponseDto[]>(`/venues/${venueId}/reviews?page=1&pageSize=20`).catch(() => []),
+      // Fetch up to 200 reviews so distribution is accurate
+      fetchApi<ReviewResponseDto[]>(`/venues/${venueId}/reviews?page=1&pageSize=200`).catch(() => []),
     ]);
   } catch {
     notFound();
@@ -55,14 +73,18 @@ export default async function VenueDetailPage({
 
   if (!venue) notFound();
 
+  // Compute rating stats from reviews (backend has no /rating-stats endpoint)
+  const ratingStats: RatingStatsDto = computeRatingStats(reviewsData ?? []);
+
   return (
     <VenueDetailClient
       venueId={venueId}
       venue={venue}
       courts={courts}
       openingHours={openingHours}
-      ratings={ratingStats ?? { averageRating: 0, totalReviews: 0, ratingDistribution: {} }}
-      reviews={reviewsData}
+      ratings={ratingStats}
+      reviews={reviewsData ?? []}
     />
   );
 }
+

@@ -184,8 +184,14 @@ export async function getAllAmenities() {
 /* FAVORITES                                                           */
 /* ------------------------------------------------------------------ */
 export async function getMyFavorites() {
-  const res = await apiFetch<VenueResponseDto[]>("/Venues/favorites/my");
-  return (res.data ?? []).map(mapVenueToDiscovery);
+  interface FavoriteVenueItem {
+    userProfileId: number;
+    venueId: number;
+    venue: VenueResponseDto;
+  }
+  const res = await apiFetch<FavoriteVenueItem[]>("/Venues/favorites/my");
+  const venues = (res.data ?? []).map((item) => item.venue).filter(Boolean);
+  return venues.map(mapVenueToDiscovery);
 }
 
 export async function addFavorite(venueId: number) {
